@@ -70,6 +70,7 @@
     "qrcode.react": "^1.0.1",
     "qs": "6.5.1",
     "rc-input-number": "^7.3.3",
+    "rc-menu": "^9.0.13",
     "react": "^16.8.6",
     "react-color": "^2.19.3",
     "react-cropper": "^2.1.8",

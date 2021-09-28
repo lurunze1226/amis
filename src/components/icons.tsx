@@ -186,5 +186,6 @@ export {
   CheckIcon,
   PlusIcon,
   MinusIcon,
-  PencilIcon
+  PencilIcon,
+  CaretIcon
 };

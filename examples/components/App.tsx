@@ -29,6 +29,8 @@ import DocNavCN from './DocNavCN';
 import Example, {examples} from './Example';
 import CSSDocs, {cssDocs} from './CssDocs';
 import Components, {components} from './Components';
+import Playground from './Playground';
+import Menu from '../../src/components/menu';
 
 declare const _hmt: any;
 
@@ -294,6 +296,9 @@ export class App extends React.PureComponent<{
             >
               编辑器
             </a>
+            <Link to={`${ContextPath}/playground`} activeClassName="is-active">
+              Playground
+            </Link>
             {/* <a href="https://suda.bce.baidu.com" target="_blank">
               爱速搭
             </a> */}
@@ -416,102 +421,167 @@ export class App extends React.PureComponent<{
       'i'
     );
 
-    return (
-      <AsideNav
-        navigations={this.state.navigations.map(item => ({
-          ...item,
-          children: item.children
-            ? item.children
-                .filter(item => {
-                  if (item.label) {
-                    return filterReg.exec(item.label);
-                  }
-                  return true;
-                })
-                .map(item => ({
-                  ...item,
-                  className: 'is-top'
-                }))
-            : []
-        }))}
-        renderLink={({
-          link,
-          active,
-          toggleExpand,
-          classnames: cx,
-          depth
-        }: any) => {
-          let children = [];
+    const saasNav = [
+      {
+        label: '应用开发',
+        children: [
+          {
+            label: '页面管理',
+            icon: 'iconfont icon-file-list',
+            path: '/admin/page/:id',
+            url: '/admin/page/home',
+            permission: 'admin:page:?'
+          },
 
-          if (link.children && link.children.length) {
-            children.push(
-              <span
-                key="expand-toggle"
-                className={cx('AsideNav-itemArrow')}
-                onClick={e => toggleExpand(link, e)}
-              ></span>
-            );
+          {
+            label: 'API 中心',
+            icon: 'iconfont icon-api',
+            path: '/admin/api/:groupKey',
+            url: '/admin/api/default'
+          },
+
+          {
+            label: '实体管理',
+            icon: 'iconfont icon-moladb-new',
+            permission: 'admin:model:?',
+            path: '/admin/model/:dsId',
+            url: '/admin/model/default',
+            children: [
+              {
+                hidden: true,
+                label: '数据管理',
+                icon: 'iconfont icon-database',
+                path: '/admin/model-data/:dsId/:mId',
+                url: '/admin/model-data/default/default',
+                permission: 'admin:app:dataManage'
+              }
+            ]
+          },
+
+          {
+            label: '应用发布',
+            icon: 'iconfont icon-deploy',
+            path: '/admin/release',
+            permission: 'admin:app:publish'
+          },
+          {
+            label: '应用设置',
+            icon: 'iconfont icon-setting',
+            path: '/admin/setting',
+            permission: 'admin:app:setting'
+          },
+          {
+            label: '全局查找',
+            icon: 'iconfont icon-new-search',
+            path: '/admin/search',
+            permission: 'admin:app:setting'
           }
+        ]
+      },
+      {
+        label: '应用管理',
+        children: []
+      }
+    ];
 
-          link.badge &&
-            children.push(
-              <b
-                key="badge"
-                className={cx(
-                  `AsideNav-itemBadge`,
-                  link.badgeClassName || 'bg-info'
-                )}
-              >
-                {link.badge}
-              </b>
-            );
+    return <Menu navigations={saasNav} themeColor="dark"></Menu>;
 
-          if (link.icon) {
-            children.push(
-              <i key="icon" className={cx(`AsideNav-itemIcon`, link.icon)} />
-            );
-          } else if (this.state.folded && depth === 1) {
-            children.push(
-              <i
-                key="icon"
-                className={cx(
-                  `AsideNav-itemIcon`,
-                  link.children ? 'fa fa-folder' : 'fa fa-info'
-                )}
-              />
-            );
-          }
+    // return (
+    //   <AsideNav
+    //     navigations={this.state.navigations.map(item => ({
+    //       ...item,
+    //       children: item.children
+    //         ? item.children
+    //             .filter(item => {
+    //               if (item.label) {
+    //                 return filterReg.exec(item.label);
+    //               }
+    //               return true;
+    //             })
+    //             .map(item => ({
+    //               ...item,
+    //               className: 'is-top'
+    //             }))
+    //         : []
+    //     }))}
+    //     renderLink={({
+    //       link,
+    //       active,
+    //       toggleExpand,
+    //       classnames: cx,
+    //       depth
+    //     }: any) => {
+    //       let children = [];
 
-          children.push(
-            <span className={cx('AsideNav-itemLabel')} key="label">
-              {link.label}
-            </span>
-          );
+    //       if (link.children && link.children.length) {
+    //         children.push(
+    //           <span
+    //             key="expand-toggle"
+    //             className={cx('AsideNav-itemArrow')}
+    //             onClick={e => toggleExpand(link, e)}
+    //           ></span>
+    //         );
+    //       }
 
-          return link.path ? (
-            /^https?\:/.test(link.path) ? (
-              <a target="_blank" href={link.path} rel="noopener">
-                {children}
-              </a>
-            ) : (
-              <Link
-                to={
-                  getPath(link.path) ||
-                  (link.children && getPath(link.children[0].path))
-                }
-              >
-                {children}
-              </Link>
-            )
-          ) : (
-            <a onClick={link.children ? () => toggleExpand(link) : undefined}>
-              {children}
-            </a>
-          );
-        }}
-        isActive={(link: any) => isActive(link, location)}
-      />
-    );
+    //       link.badge &&
+    //         children.push(
+    //           <b
+    //             key="badge"
+    //             className={cx(
+    //               `AsideNav-itemBadge`,
+    //               link.badgeClassName || 'bg-info'
+    //             )}
+    //           >
+    //             {link.badge}
+    //           </b>
+    //         );
+
+    //       if (link.icon) {
+    //         children.push(
+    //           <i key="icon" className={cx(`AsideNav-itemIcon`, link.icon)} />
+    //         );
+    //       } else if (this.state.folded && depth === 1) {
+    //         children.push(
+    //           <i
+    //             key="icon"
+    //             className={cx(
+    //               `AsideNav-itemIcon`,
+    //               link.children ? 'fa fa-folder' : 'fa fa-info'
+    //             )}
+    //           />
+    //         );
+    //       }
+
+    //       children.push(
+    //         <span className={cx('AsideNav-itemLabel')} key="label">
+    //           {link.label}
+    //         </span>
+    //       );
+
+    //       return link.path ? (
+    //         /^https?\:/.test(link.path) ? (
+    //           <a target="_blank" href={link.path} rel="noopener">
+    //             {children}
+    //           </a>
+    //         ) : (
+    //           <Link
+    //             to={
+    //               getPath(link.path) ||
+    //               (link.children && getPath(link.children[0].path))
+    //             }
+    //           >
+    //             {children}
+    //           </Link>
+    //         )
+    //       ) : (
+    //         <a onClick={link.children ? () => toggleExpand(link) : undefined}>
+    //           {children}
+    //         </a>
+    //       );
+    //     }}
+    //     isActive={(link: any) => isActive(link, location)}
+    //   />
+    // );
   }
 
   renderExamples() {
@@ -569,6 +639,8 @@ export class App extends React.PureComponent<{
     } else if (/examples/.test(location.pathname)) {
       return this.renderExamples();
     }
+
+    return <Playground asideFolded />;
 
     return (
       <Layout

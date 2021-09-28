@@ -54,6 +54,7 @@ import NumberInput from './NumberInput';
 import ArrayInput from './ArrayInput';
 import SearchBox from './SearchBox';
 import AnchorNav from './AnchorNav';
+import Menu from './menu';
 
 export {
   NotFound,
@@ -65,6 +66,7 @@ export {
   openContextMenus,
   Alert2,
   AsideNav,
+  Menu,
   Button,
   Checkbox,
   Checkboxes,

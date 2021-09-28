@@ -901,6 +901,7 @@ if (fis.project.currentMedia() === 'publish') {
         const Components = ret.src['/examples/components/Components.tsx'];
         const DocCSS = ret.src['/examples/components/CssDocs.tsx'];
         const ExampleJs = ret.src['/examples/components/Example.tsx'];
+        const PlaygroundJs = ret.src['/examples/components/Playground.tsx'];
 
         const pages = [];
         const source = [
@@ -909,7 +910,8 @@ if (fis.project.currentMedia() === 'publish') {
           DocNavCN.getContent(),
           Components.getContent(),
           DocCSS.getContent(),
-          ExampleJs.getContent()
+          ExampleJs.getContent(),
+          PlaygroundJs.getContent()
         ].join('\n');
         source.replace(
           /\bpath\b\s*\:\s*('|")(.*?)\1/g,

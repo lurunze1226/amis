@@ -1354,4 +1354,26 @@
   --Steps-sub-title-color: var(--text-color);
   --Steps-line-bg: var(--Steps-bg);
   --Steps-line-success-bg: var(--Steps-status-success);
+
+  --Menu-width: var(--Layout-aside-width);
+  --Menu--folded-width: var(--Layout-aside--folded-width);
+  --Menu-fontSize: #{px2rem(14px)};
+  --Menu-fontWeight: 400;
+  --Menu-fontColor-onDisabled: var(--icon-onDisabled-color);
+
+  --Menu-light-backgroundColor: var(--white);
+  --Menu-light-backgroundColor-onHover: #eef3fe;
+  --Menu-light-fontColor: #151a26;
+  --Menu-light-fontColor-onHover: #2468f2;
+  --Menu-light-fontColor-onActive: #2468f2;
+  --Menu-light-groupTitle-fontColor: var(--Layout-asideLabel-color);
+  --Menu-light-selectedIndicator-color: #2468f2;
+
+  --Menu-dark-backgroundColor: #212631;
+  --Menu-dark-backgroundColor-onHover: #2468f2;
+  --Menu-dark-fontColor: #ffffffa6;
+  --Menu-dark-fontColor-onHover: var(--white);
+  --Menu-dark-fontColor-onActive: var(--white);
+  --Menu-dark-groupTitle-fontColor: var(--Layout-asideLabel-color);
+  --Menu-dark-selectedIndicator-color: #578fff;
 }
