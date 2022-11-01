@@ -112,13 +112,16 @@ function getPlugins(format = 'esm') {
       ? {
           compilerOptions: {
             rootDir: './src',
-            outDir: path.dirname(module)
+            outDir: path.dirname(module),
+            /** 覆盖继承自顶层tsconfig的paths配置，编译时应该去掉，避免报错@rollup/plugin-typescript TS6305 */
+            paths: {}
           }
         }
       : {
           compilerOptions: {
             rootDir: './src',
-            outDir: path.dirname(main)
+            outDir: path.dirname(main),
+            paths: {}
           }
         })
   };
