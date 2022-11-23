@@ -5,6 +5,7 @@
  * This source code is licensed under the Apache license found in the
  * LICENSE file in the root directory of this source tree.
  */
+
 import {
   Renderer,
   getRendererByName,
@@ -184,6 +185,13 @@ export function render(
 
   // 根据环境覆盖 schema，这个要在最前面做，不然就无法覆盖 validations
   envOverwrite(schema, locale);
+
+  if (options?.variable) {
+    options.variable = {
+      ...options.variable,
+      session: options.session || 'global'
+    };
+  }
 
   if (!store) {
     options = {

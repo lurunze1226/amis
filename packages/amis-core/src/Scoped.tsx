@@ -5,6 +5,7 @@
 
 import React from 'react';
 import find from 'lodash/find';
+import values from 'lodash/values';
 import hoistNonReactStatic from 'hoist-non-react-statics';
 import {dataMapping} from './utils/tpl-builtin';
 import {RendererEnv, RendererProps} from './factory';
@@ -12,11 +13,13 @@ import {
   autobind,
   qsstringify,
   qsparse,
+  eachTree,
   findTree,
   TreeItem,
   parseQuery
 } from './utils/helper';
 import {RendererData, ActionObject} from './types';
+import {isPureVariable} from './utils/isPureVariable';
 
 export interface ScopedComponentType extends React.Component<RendererProps> {
   focus?: () => void;
@@ -32,6 +35,11 @@ export interface ScopedComponentType extends React.Component<RendererProps> {
     ctx?: RendererData
   ) => void;
   context: any;
+  setData?: (
+    value: Record<string, any>,
+    replace?: boolean,
+    index?: number
+  ) => void;
 }
 
 export interface IScopedContext {
@@ -124,6 +132,82 @@ function createScopedTools(
         })
       ) as ScopedComponentType | undefined;
       return component;
+    },
+
+    /**
+     * 基于绑定的变量名称查找组件
+     * 支持形如${xxx}的格式
+     *
+     * @param session store的session, 默认为全局的
+     * @param namesapce 变量的命名空间
+     * @param variablePath 变量全路径, 包含命名空间
+     */
+    getComponentByVariablePath(
+      session: string,
+      namespace: string,
+      variablePath: string
+    ): ScopedComponentType[] {
+      if (
+        !namespace ||
+        !variablePath ||
+        typeof namespace !== 'string' ||
+        typeof variablePath !== 'string'
+      ) {
+        return [];
+      }
+
+      const cmptMaps: Record<string, ScopedComponentType> = {};
+      let root: AliasIScopedContext = this;
+
+      while (root.parent) {
+        root = root.parent;
+      }
+
+      eachTree([root], (item: TreeItem) => {
+        const scopedCmptList: ScopedComponentType[] =
+          item.getComponents() || [];
+
+        if (Array.isArray(scopedCmptList)) {
+          for (const cmpt of scopedCmptList) {
+            const pathKey = cmpt?.props?.$path ?? 'unknown';
+            const schema = cmpt?.props?.$schema ?? {};
+            const cmptSession = cmpt?.props.env?.session ?? 'global';
+
+            /** 仅查找当前session的组件 */
+            if (cmptMaps[pathKey] || session !== cmptSession) {
+              continue;
+            }
+
+            /** 非Scoped组件, 查找其所属的父容器 */
+            if (cmpt?.setData && typeof cmpt.setData === 'function') {
+              cmptMaps[pathKey] = cmpt;
+              continue;
+            }
+
+            /** 查找Scoped组件中的引用 */
+            for (const key of Object.keys(schema)) {
+              const expression = schema[key];
+
+              if (
+                typeof expression === 'string' &&
+                isPureVariable(expression)
+              ) {
+                /** 考虑到数据映射函数的情况，将宿主变量提取出来 */
+                const host = expression
+                  .substring(2, expression.length - 1)
+                  .split('|')[0];
+
+                if (host && host === variablePath) {
+                  cmptMaps[pathKey] = cmpt;
+                  break;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      return values(cmptMaps);
     },
 
     getComponents() {

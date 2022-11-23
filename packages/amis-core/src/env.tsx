@@ -24,7 +24,27 @@ export interface wsObject {
   body?: any;
 }
 
+export interface VariableConfig {
+  /** 变量ID */
+  id: string;
+  /** 命名空间 */
+  namespace: string;
+  /** 变量值, 必须为对象结构 */
+  data: Record<string, any>;
+  /** 数据更新前触发的Hook */
+  beforeSetData?: (
+    value: any,
+    path: string,
+    ctx: Record<string, any>,
+    isIsolated: boolean
+  ) => void;
+  /** 数据插入Root节点前触发的Hook */
+  beforeInitRootData?: (ctx: any) => void;
+  [props: string]: any;
+}
+
 export interface RendererEnv {
+  session?: string;
   fetcher: (api: Api, data?: any, options?: object) => Promise<Payload>;
   isCancel: (val: any) => boolean;
   wsFetcher: (
@@ -103,9 +123,14 @@ export interface RendererEnv {
    */
   replaceText?: {[propName: string]: any};
   /**
-   * 文本替换的黑名单，因为属性太多了所以改成黑名单的 fangs
+   * 文本替换的黑名单，因为属性太多了所以改成黑名单的 flags
    */
   replaceTextIgnoreKeys?: String[];
+
+  /**
+   * 外部变量配置
+   */
+  variable?: VariableConfig;
 }
 
 export const EnvContext = React.createContext<RendererEnv | void>(undefined);

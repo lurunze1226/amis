@@ -1,15 +1,16 @@
-import isPlainObject from 'lodash/isPlainObject';
 import React from 'react';
+import isPlainObject from 'lodash/isPlainObject';
 import {RendererEnv} from './env';
 import {RendererProps} from './factory';
 import {LocaleContext, TranslateFn} from './locale';
-import {RootRenderer, RootRendererProps} from './RootRenderer';
+import {RootRenderer} from './RootRenderer';
 import {SchemaRenderer} from './SchemaRenderer';
 import Scoped from './Scoped';
 import {IRendererStore} from './store';
 import {ThemeContext} from './theme';
 import {Schema, SchemaNode} from './types';
 import {autobind, isEmpty} from './utils/helper';
+import {createObject} from './utils/object';
 import {RootStoreContext} from './WithRootStore';
 
 export interface RootRenderProps {
@@ -68,11 +69,22 @@ export class Root extends React.Component<RootProps> {
       translate,
       ...rest
     } = this.props;
-
     const theme = env.theme;
+    const {namespace, beforeInitRootData} = env?.variable ?? {};
     let themeName = this.props.theme || 'cxd';
+    let mergedData = data;
+
     if (themeName === 'default') {
       themeName = 'cxd';
+    }
+
+    if (
+      namespace &&
+      typeof namespace === 'string' &&
+      beforeInitRootData &&
+      typeof beforeInitRootData === 'function'
+    ) {
+      mergedData = beforeInitRootData(data);
     }
 
     return (
@@ -100,7 +112,7 @@ export class Root extends React.Component<RootProps> {
                   rootStore: rootStore,
                   resolveDefinitions: this.resolveDefinitions,
                   location: location,
-                  data: data,
+                  data: mergedData,
                   env: env,
                   classnames: theme.classnames,
                   classPrefix: theme.classPrefix,
@@ -122,7 +134,7 @@ export class Root extends React.Component<RootProps> {
                       rootStore={rootStore}
                       resolveDefinitions={this.resolveDefinitions}
                       location={location}
-                      data={data}
+                      data={mergedData}
                       env={env}
                       classnames={theme.classnames}
                       classPrefix={theme.classPrefix}

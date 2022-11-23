@@ -57,6 +57,33 @@ export function extendObject(
   return obj;
 }
 
+export function extendObjectSuperByKey(
+  target: any = {},
+  src: Record<string, any>,
+  key: string,
+  persistOwnProps: boolean = true
+) {
+  if (!key || !src || !isObject(src)) {
+    return target;
+  }
+
+  const data = cloneObject(target, persistOwnProps);
+  const extendData: Record<string, any> = {};
+  src && Object.keys(src).forEach(key => (extendData[key] = src[key]));
+
+  const result = Object.create(data, {
+    __super: {
+      value: {...data?.__super, ...{[key]: extendData}},
+      writable: false,
+      enumerable: false
+    }
+  });
+
+  data && Object.keys(data).forEach(key => (result[key] = data[key]));
+
+  return result;
+}
+
 export function isObject(obj: any) {
   const typename = typeof obj;
   return (
