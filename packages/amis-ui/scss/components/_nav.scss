@@ -10,10 +10,35 @@
     .#{$ns}Nav-itemIcon {
       margin-right: var(--gap-sm);
     }
+    .#{$ns}Nav-itemIconAfter {
+      margin-right: 0;
+      margin-left: var(--gap-sm);
+    }
 
     img.#{$ns}Nav-itemIcon {
       height: var(--Tabs-linkFontSize);
       vertical-align: middle;
+    }
+
+    .#{$ns}Nav-itemToggler {
+      // position: absolute;
+      // left: 0;
+      // top: px2rem(3px);
+      // float: left;
+      margin-right: px2rem(10px);
+      height: px2rem(24px);
+      text-align: center;
+      line-height: px2rem(24px);
+      vertical-align: middle;
+      cursor: pointer;
+      transform: scale(0.8);
+      transition: transform var(--animation-duration);
+
+      > svg {
+        width: 10px;
+        height: 10px;
+        top: 0;
+      }
     }
 
     &-overflow {
@@ -47,6 +72,57 @@
     &--tabs {
       border-bottom: var(--Tabs-borderWidth) solid var(--Tabs-borderColor);
 
+      &.nav-simple {
+        display: flex;
+
+        .#{$ns}Nav-item {
+          margin-bottom: 0;
+          vertical-align: text-top;
+
+          > a {
+            border: none;
+            margin: 0;
+            padding: var(--gap-md) 0;
+          }
+
+          &:hover {
+            > a,
+            > a:focus {
+              border: none;
+              color: var(--Tabs-onActive-color);
+              text-decoration: none;
+            }
+          }
+
+          &.active > a,
+          &.is-active > a {
+            border: none;
+            background: none;
+          }
+
+          &.is-active {
+            position: relative;
+
+            &:after {
+              position: absolute;
+              content: '';
+              bottom: 0;
+              width: 100%;
+              height: px2rem(2px);
+              background-color: var(--Tabs-onActive-color);
+            }
+          }
+
+          .#{$ns}Nav-subItems {
+            display: none;
+          }
+        }
+
+        &:first-child {
+          margin-left: 0;
+        }
+      }
+
       .#{$ns}Nav-item {
         margin-bottom: calc(var(--Tabs-borderWidth) * -1);
         display: inline-block;
@@ -70,11 +146,14 @@
           white-space: nowrap;
         }
 
-        &:hover > a,
-        > a:focus {
-          border-color: var(--Tabs-onHover-borderColor);
-          border-bottom: none; // 外层已经有border-bottom了
-          text-decoration: none;
+        &:hover {
+          > a,
+          > a:focus {
+            border-color: var(--Tabs-onHover-borderColor);
+            border-bottom: none; // 外层已经有border-bottom了
+            color: var(--Tabs-onActive-color);
+            text-decoration: none;
+          }
         }
 
         &.disabled > a,
@@ -92,6 +171,10 @@
           border-color: var(--Tabs-onActive-borderColor);
           border-bottom-color: var(--Tabs-content-bg);
         }
+      }
+
+      > .#{$ns}Nav-item {
+        margin-left: px2rem(40px);
       }
 
       .#{$ns}Nav-item-overflow {
@@ -136,23 +219,27 @@
           }
         }
 
-        > .#{$ns}Nav-item-badgeText {
-          position: absolute;
-          top: 0;
-          bottom: 0;
-          width: px2rem(35px);
-          overflow: hidden;
-          > span {
-            position: absolute;
-            top: px2rem(2px);
-            left: px2rem(-13px);
-            transform: rotate(-45deg);
-            width: px2rem(50px);
-            font-size: 12px;
-            text-align: center;
-            color: var(--white);
-            background: var(--success);
-          }
+        // > .#{$ns}Nav-item-badgeText {
+        //   position: absolute;
+        //   top: 0;
+        //   bottom: 0;
+        //   width: px2rem(35px);
+        //   overflow: hidden;
+        //   > span {
+        //     position: absolute;
+        //     top: px2rem(2px);
+        //     left: px2rem(-13px);
+        //     transform: rotate(-45deg);
+        //     width: px2rem(50px);
+        //     font-size: 12px;
+        //     text-align: center;
+        //     color: var(--white);
+        //     background: var(--success);
+        //   }
+        // }
+
+        > .#{$ns}Badge-ribbon-out {
+          z-index: 3;
         }
 
         > .#{$ns}Nav-item-atcions {
@@ -228,9 +315,9 @@
           position: relative;
           background: var(--Nav-item-onActive-bg) !important;
 
-          &::after {
-            transform: scaleY(1);
-          }
+          // &::after {
+          //   transform: scaleY(1);
+          // }
         }
 
         &.is-unfolded >,
@@ -245,32 +332,76 @@
           }
         }
 
+        &.is-after {
+          .#{$ns}Nav-itemToggler {
+            margin-left: auto;
+          }
+
+          > a,
+          > .#{$ns}Badge > a {
+            font-size: var(--Nav-item-fontSize);
+            padding: 0;
+            height: px2rem(40px);
+            border-radius: 0;
+          }
+
+          > a:hover,
+          > a:focus,
+          > a:hover + .#{$ns}Nav-item-atcions,
+          > a:focus + .#{$ns}Nav-item-atcions,
+          > .#{$ns}Badge > a:hover,
+          > .#{$ns}Badge > a:focus,
+          > .#{$ns}Badge > a:hover + .#{$ns}Nav-item-atcions,
+          > .#{$ns}Badge > a:focus + .#{$ns}Nav-item-atcions {
+            background: none;
+            color: var(--Nav-item-onActive-color);
+          }
+
+          &.is-active {
+            > .#{$ns}Badge > a {
+              background-color: var(
+                --Nav-item-onActive-backgroundColor
+              ) !important;
+            }
+
+            &::after {
+              position: absolute;
+              left: 0;
+              content: '';
+              width: 3px;
+              height: 100%;
+              background-color: var(--Nav-item-onActive-borderColor);
+              z-index: 2;
+            }
+          }
+        }
+
         .#{$ns}Nav-spinner {
           position: absolute;
           right: px2rem(10px);
           top: px2rem(8px);
         }
 
-        .#{$ns}Nav-itemToggler {
-          // position: absolute;
-          // left: 0;
-          // top: px2rem(3px);
-          float: left;
-          margin-right: px2rem(10px);
-          height: px2rem(24px);
-          text-align: center;
-          line-height: px2rem(24px);
-          vertical-align: middle;
-          cursor: pointer;
-          transform: scale(0.8);
-          transition: transform var(--animation-duration);
+        // .#{$ns}Nav-itemToggler {
+        //   // position: absolute;
+        //   // left: 0;
+        //   // top: px2rem(3px);
+        //   float: left;
+        //   margin-right: px2rem(10px);
+        //   height: px2rem(24px);
+        //   text-align: center;
+        //   line-height: px2rem(24px);
+        //   vertical-align: middle;
+        //   cursor: pointer;
+        //   transform: scale(0.8);
+        //   transition: transform var(--animation-duration);
 
-          > svg {
-            width: 10px;
-            height: 10px;
-            top: 0;
-          }
-        }
+        //   > svg {
+        //     width: 10px;
+        //     height: 10px;
+        //     top: 0;
+        //   }
+        // }
 
         .#{$ns}Nav-subItems {
           // background: var(--Nav-subNav-bg);
