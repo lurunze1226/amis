@@ -19,6 +19,7 @@ import {
   someTree,
   spliceTree,
   findTreeIndex,
+  findTree,
   isObject
 } from 'amis-core';
 import {generateIcon} from 'amis-core';
@@ -70,6 +71,8 @@ export type NavItemSchema = {
   deferApi?: SchemaApi;
 
   children?: Array<NavItemSchema>;
+
+  key?: string; // 菜单项的唯一标识 事件动作需要使用
 } & Omit<BaseSchema, 'type'>;
 
 export interface NavOverflow {
@@ -208,9 +211,9 @@ export interface NavSchema extends BaseSchema {
   level?: number;
 
   /**
-   * 控制仅展示指定label菜单下的子菜单项
+   * 控制仅展示指定key菜单下的子菜单项
    */
-  showLabel?: string;
+  showKey?: string;
 
   /**
    * 控制展开按钮位置 不设置 默认放在前面
@@ -739,22 +742,22 @@ export class Navigation extends React.Component<
 
 const ThemedNavigation = themeable(Navigation);
 
-// 如果设置了重复的label，那么默认取第一个找到的
-function findSelectedLink(links: Array<Link>, key: string): any {
-  let result = null;
-  if (links && links.length) {
-    for (let i = 0; i < links.length; i++) {
-      const item = links[i];
-      if (item.label === key) {
-        result = item;
-        break;
-      } else if (item.children) {
-        result = findSelectedLink(item.children, key);
-      }
-    }
-  }
-  return result;
-}
+// // 如果设置了重复的label，那么默认取第一个找到的
+// function findSelectedLink(links: Array<Link>, key: string): any {
+//   let result = null;
+//   if (links && links.length) {
+//     for (let i = 0; i < links.length; i++) {
+//       const item = links[i];
+//       if (item.label === key) {
+//         result = item;
+//         break;
+//       } else if (item.children) {
+//         result = findSelectedLink(item.children, key);
+//       }
+//     }
+//   }
+//   return result;
+// }
 
 const ConditionBuilderWithRemoteOptions = withRemoteConfig({
   adaptor: (config: any, props: any) => {
@@ -858,10 +861,16 @@ const ConditionBuilderWithRemoteOptions = withRemoteConfig({
         unfoldedField?: string;
         foldedField?: string;
         reload?: any;
-      }
+      },
+    {currentKey: string}
   > {
     constructor(props: any) {
       super(props);
+
+      this.state = {
+        currentKey: props.showKey || '' // 记录当前筛选的菜单label 如果有重复的 那都显示出来
+      };
+
       this.toggleLink = this.toggleLink.bind(this);
       this.handleSelect = this.handleSelect.bind(this);
       this.dragUpdate = this.dragUpdate.bind(this);
@@ -872,12 +881,6 @@ const ConditionBuilderWithRemoteOptions = withRemoteConfig({
     componentDidMount() {
       if (Array.isArray(this.props.links)) {
         this.props.updateConfig(this.props.links, 'mount');
-      }
-
-      const showLabel = this.props.showLabel;
-      if (showLabel) {
-        const children = this.updateSelectedConfig(showLabel);
-        this.props.updateConfig(children, 'update');
       }
     }
 
@@ -908,20 +911,20 @@ const ConditionBuilderWithRemoteOptions = withRemoteConfig({
       const prevActiveItems = this.getActiveItems(prevProps.config);
 
       if (!isEqual(currentActiveItems, prevActiveItems)) {
-        this.props.dispatchEvent('selected', {avtiveItems: currentActiveItems});
+        this.props.dispatchEvent('change', {activeItems: currentActiveItems});
       }
     }
 
-    updateSelectedConfig(key: string) {
+    getSelectedLinks(key: string) {
       const {config, data} = this.props;
-      const label = resolveVariableAndFilter(key, data, '| raw');
-      if (!label) {
-        if (config) {
-          return [...config];
-        }
-        return [];
+      const id = resolveVariableAndFilter(key, data, '| raw');
+      if (!id) {
+        return config;
       }
-      const item = findSelectedLink(config, label);
+      const item = findTree(config, (item: any) => {
+        const key = item.key || item.label;
+        return key === id;
+      });
       let children: Array<Link> = [];
       if (item && item.children) {
         children = children.concat(item.children);
@@ -932,13 +935,12 @@ const ConditionBuilderWithRemoteOptions = withRemoteConfig({
 
     toggleLink(target: Link, forceFold?: boolean) {
       const {config, updateConfig, deferLoad} = this.props;
-
       if (target.defer && !target.loaded) {
         deferLoad(target);
       } else {
         updateConfig(
           mapTree(config, (link: Link) =>
-            target === link
+            isEqual(target, link)
               ? {
                   ...link,
                   unfolded: forceFold ? false : !link.unfolded
@@ -1037,13 +1039,13 @@ const ConditionBuilderWithRemoteOptions = withRemoteConfig({
     }
 
     render() {
-      const {loading, filterConfig, config, deferLoad, updateConfig, ...rest} =
-        this.props;
+      const {loading, config, deferLoad, updateConfig, ...rest} = this.props;
+      const links: Array<any> = this.getSelectedLinks(this.state.currentKey);
       return (
         <ThemedNavigation
           {...rest}
           loading={loading}
-          links={filterConfig || config || []}
+          links={links}
           disabled={loading}
           onSelect={this.handleSelect}
           onToggle={this.toggleLink}
@@ -1106,25 +1108,25 @@ export class NavigationRenderer extends React.Component<RendererProps> {
       if (args.value) {
         if (Array.isArray(args.value)) {
           // 只展示触发项的children属性
-          args.value.forEach((item: Link) => {
+          // 多个的话 默认只展示第一个
+          if (args.value.length > 0) {
+            const item = args.value[0];
+            this.navRef.setState({currentKey: item.key || item.label});
             if (item.children) {
               children = children.concat(item.children);
             }
-          });
+          }
         } else if (typeof args.value === 'string') {
-          children = this.navRef.updateSelectedConfig(args.value);
+          this.navRef.setState({currentKey: args.value});
+          children = this.navRef.getSelectedLinks(args.value);
           if (children.length > 0) {
             const {env, data} = this.props;
             env?.jumpTo(filter(children[0].to as string, data));
           }
         }
-
-        this.remoteRef?.setFilterConfig(children);
-      } else if (actionType === 'reset') {
-        // 目前只能通过事件动作将filterConfig置空
-        // 否则始终展示filterConfig 且filterConfig不一定是最新的config
-        this.remoteRef?.setFilterConfig(null);
       }
+    } else if (actionType === 'reset') {
+      this.navRef.setState({currentKey: ''});
     }
   }
 

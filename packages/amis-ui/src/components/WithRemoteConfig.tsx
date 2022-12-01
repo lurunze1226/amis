@@ -26,8 +26,7 @@ export const Store = types
   .props({
     fetching: false,
     errorMsg: '',
-    config: types.frozen(), // 当前展示的数据
-    filterConfig: types.frozen(), // 记录原始数据源
+    config: types.frozen(),
     data: types.frozen({})
   })
   .actions(self => {
@@ -73,22 +72,6 @@ export const Store = types
       setData(data: any) {
         self.data = data || {};
       },
-      setFilterConfig(
-        options: any,
-        config: WithRemoteConfigSettings,
-        motivation?: any
-      ) {
-        if (config.normalizeConfig) {
-          options =
-            config.normalizeConfig(
-              options,
-              self.config,
-              component.props,
-              motivation
-            ) || options;
-        }
-        self.filterConfig = options;
-      },
       setConfig(
         options: any,
         config: WithRemoteConfigSettings,
@@ -122,7 +105,6 @@ export interface OutterProps {
       | {
           loadConfig: (ctx?: any) => Promise<any> | void;
           setConfig: (value: any) => void;
-          setFilterConfig: (value: any) => void;
         }
       | undefined
   ) => void;
@@ -130,7 +112,6 @@ export interface OutterProps {
 
 export interface RemoteOptionsProps<T = any> {
   config: T;
-  filterConfig: T;
   loading?: boolean;
   deferLoad: (item: any) => Promise<any>;
   updateConfig: (value: T, ctx?: any) => void;
@@ -233,7 +214,6 @@ export function withRemoteConfig<P = any>(
             super(props);
 
             this.setConfig = this.setConfig.bind(this);
-            this.setFilterConfig = this.setFilterConfig.bind(this);
             props.store.setComponent(this);
             this.deferLoadConfig = this.deferLoadConfig.bind(this);
             props.remoteConfigRef?.(this);
@@ -330,11 +310,6 @@ export function withRemoteConfig<P = any>(
             store.setConfig(value, config, ctx);
           }
 
-          setFilterConfig(value: any, ctx?: any) {
-            const {store} = this.props;
-            store.setFilterConfig(value, config, ctx);
-          }
-
           syncConfig() {
             const {store, data} = this.props;
             const source = (this.props as any)[config.sourceField || 'source'];
@@ -395,7 +370,6 @@ export function withRemoteConfig<P = any>(
             const env: RendererEnv = this.props.env || this.context;
             const injectedProps: RemoteOptionsProps<P> = {
               config: store.config,
-              filterConfig: store.filterConfig,
               loading: store.fetching,
               deferLoad: this.deferLoadConfig,
               updateConfig: this.setConfig

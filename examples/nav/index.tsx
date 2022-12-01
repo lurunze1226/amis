@@ -183,7 +183,7 @@ export class App extends React.PureComponent<{
               type: 'nav',
               id: 'asideNav',
               stacked: true,
-              showLabel: '${active}',
+              showKey: '${active}',
               // links: schema
               source: '${schema}',
               expandPosition: 'after',
