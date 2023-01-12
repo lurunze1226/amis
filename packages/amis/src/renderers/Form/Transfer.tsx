@@ -145,6 +145,11 @@ export interface TransferControlSchema extends FormOptionsSchema {
    * 在选项数量达到多少时开启虚拟渲染
    */
   virtualThreshold?: number;
+
+  /**
+   * 当在value值未匹配到当前options中的选项时，是否value值对应文本飘红显示
+   */
+  showInvalidMatch?: boolean;
 }
 
 export interface BaseTransferProps
@@ -183,7 +188,9 @@ export class BaseTransferRenderer<
       extractValue,
       options,
       dispatchEvent,
-      setOptions
+      setOptions,
+      selectMode,
+      deferApi
     } = this.props;
     let newValue: any = value;
     let newOptions = options.concat();
@@ -240,8 +247,14 @@ export class BaseTransferRenderer<
       }
     }
 
-    (newOptions.length > options.length || optionModified) &&
-      setOptions(newOptions, true);
+    // 是否是有懒加载的树，这时不能将 value 添加到 options。因为有可能 value 在懒加载结果中
+    const isTreeDefer =
+      selectMode === 'tree' &&
+      (!!deferApi || !!findTree(options, (option: Option) => option.deferApi));
+
+    isTreeDefer === true ||
+      ((newOptions.length > options.length || optionModified) &&
+        setOptions(newOptions, true));
 
     // 触发渲染器事件
     const rendererEvent = await dispatchEvent(
@@ -386,12 +399,14 @@ export class BaseTransferRenderer<
     colIndex: number,
     rowIndex: number
   ) {
-    const {render, data, classnames: cx} = this.props;
+    const {render, data, classnames: cx, showInvalidMatch} = this.props;
     return render(
       `cell/${colIndex}/${rowIndex}`,
       {
         type: 'text',
-        className: cx({'is-invalid': option?.__unmatched}),
+        className: cx({
+          'is-invalid': showInvalidMatch ? option?.__unmatched : false
+        }),
         ...column
       },
       {
@@ -459,7 +474,8 @@ export class BaseTransferRenderer<
       statistics,
       labelField,
       virtualThreshold,
-      itemHeight
+      itemHeight,
+      showInvalidMatch
     } = this.props;
 
     // 目前 LeftOptions 没有接口可以动态加载
@@ -516,6 +532,7 @@ export class BaseTransferRenderer<
           itemHeight={
             toNumber(itemHeight) > 0 ? toNumber(itemHeight) : undefined
           }
+          showInvalidMatch={showInvalidMatch}
         />
 
         <Spinner overlay key="info" show={loading} />

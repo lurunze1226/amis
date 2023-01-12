@@ -108,6 +108,7 @@ export interface TransferProps
   itemHeight?: number; // 每个选项的高度，主要用于虚拟渲染
   virtualThreshold?: number; // 数据量多大的时候开启虚拟渲染`
   virtualListHeight?: number; // 虚拟渲染时，列表高度
+  showInvalidMatch?: boolean;
 }
 
 export interface TransferState {
@@ -685,7 +686,8 @@ export class Transfer<
       translate: __,
       placeholder = __('Transfer.selectFromLeft'),
       virtualThreshold,
-      itemHeight
+      itemHeight,
+      showInvalidMatch
     } = this.props;
 
     const {resultSelectMode, isTreeDeferLoad} = this.state;
@@ -747,6 +749,7 @@ export class Transfer<
             labelField={labelField}
             virtualThreshold={virtualThreshold}
             itemHeight={itemHeight}
+            showInvalidMatch={showInvalidMatch}
           />
         );
     }
