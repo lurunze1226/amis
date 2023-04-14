@@ -219,6 +219,7 @@ export class SelectControlPlugin extends BasePlugin {
                 required: true
               }),
               getSchemaTpl('label'),
+              getSchemaTpl('crudFilterOperator', {context}),
               getSchemaTpl('clearable'),
               getSchemaTpl('searchable'),
               getSchemaTpl('multiple', {

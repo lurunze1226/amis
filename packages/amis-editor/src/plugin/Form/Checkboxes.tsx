@@ -124,6 +124,7 @@ export class CheckboxesControlPlugin extends BasePlugin {
                 required: true
               }),
               getSchemaTpl('label'),
+              getSchemaTpl('crudFilterOperator', {context}),
               [
                 getSchemaTpl('switch', {
                   label: '可全选',

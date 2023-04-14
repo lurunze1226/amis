@@ -72,6 +72,9 @@ export interface BadgeControlProps extends FormControlProps {
    * 提示类型
    */
   level?: 'info' | 'warning' | 'success' | 'danger' | SchemaExpression;
+
+  // 是否只显示内容
+  contentsOnly?: boolean;
 }
 
 interface BadgeControlState {
@@ -142,14 +145,10 @@ export default class BadgeControl extends React.Component<
   }
 
   transformBadgeValue(): BadgeForm {
-    const {data: ctx, node} = this.props;
-    let badge = ctx?.badge ?? {};
+    const {data: ctx, name} = this.props;
+    const badge = ctx?.[name || 'badge'] ?? {};
     // 避免获取到上层的size
-    let size = ctx?.badge?.size;
-    if (node.type === 'button-group-select') {
-      badge = ctx?.option?.badge ?? {};
-      size = badge?.size;
-    }
+    const size = ctx?.[name || 'badge']?.size;
     const offset = [0, 0];
 
     // 转换成combo可以识别的格式
@@ -175,7 +174,7 @@ export default class BadgeControl extends React.Component<
 
   @autobind
   handleSwitchChange(checked: boolean): void {
-    const {onChange, disabled} = this.props;
+    const {onChange, onOptionChange, disabled} = this.props;
     if (disabled) {
       return;
     }
@@ -185,22 +184,22 @@ export default class BadgeControl extends React.Component<
   }
 
   handleSubmit(form: BadgeForm, action: any): void {
-    const {onBulkChange} = this.props;
+    const {onBulkChange, name} = this.props;
 
     if (action?.type === 'submit') {
-      onBulkChange?.({badge: this.normalizeBadgeValue(form)});
+      onBulkChange?.({[name || 'badge']: this.normalizeBadgeValue(form)});
     }
   }
 
   renderBody() {
-    const {render} = this.props;
+    const {render, contentsOnly} = this.props;
     const data = this.transformBadgeValue();
     const i18nEnabled = getI18nEnabled();
     return render(
       'badge-form',
       {
         type: 'form',
-        className: 'ae-BadgeControl-form w-full',
+        className: contentsOnly ? '' : 'ae-BadgeControl-form w-full',
         wrapWithPanel: false,
         panelClassName: 'border-none shadow-none mb-0',
         bodyClassName: 'p-none',
@@ -227,7 +226,7 @@ export default class BadgeControl extends React.Component<
           {
             label: '文本内容',
             name: 'text',
-            type: i18nEnabled ? 'input-text-i18n' : 'input-text',
+            type: 'ae-formulaControl',
             mode: 'row',
             visibleOn: "data.mode !== 'dot'",
             pipeOut: (value: any) => {
@@ -360,6 +359,11 @@ export default class BadgeControl extends React.Component<
             type: 'switch',
             mode: 'row',
             inputClassName: 'inline-flex justify-between flex-row-reverse'
+          },
+          {
+            type: 'ae-formulaControl',
+            label: '显示条件',
+            name: 'visibleOn'
           }
         ]
       },
@@ -371,23 +375,35 @@ export default class BadgeControl extends React.Component<
   }
 
   render() {
-    const {classPrefix, className, labelClassName, label, disabled} =
-      this.props;
+    const {
+      classPrefix,
+      className,
+      labelClassName,
+      label,
+      disabled,
+      contentsOnly
+    } = this.props;
     const {checked} = this.state;
 
     return (
       <div className={cx('ae-BadgeControl', className)}>
-        <div className={cx('ae-BadgeControl-switch')}>
-          <label className={cx(`${classPrefix}Form-label`, labelClassName)}>
-            {label || '角标'}
-          </label>
-          <Switch
-            value={checked}
-            onChange={this.handleSwitchChange}
-            disabled={disabled}
-          />
-        </div>
-        {checked ? this.renderBody() : null}
+        {contentsOnly ? (
+          this.renderBody()
+        ) : (
+          <>
+            <div className={cx('ae-BadgeControl-switch')}>
+              <label className={cx(`${classPrefix}Form-label`, labelClassName)}>
+                {label || '角标'}
+              </label>
+              <Switch
+                value={checked}
+                onChange={this.handleSwitchChange}
+                disabled={disabled}
+              />
+            </div>
+            {checked ? this.renderBody() : null}
+          </>
+        )}
       </div>
     );
   }

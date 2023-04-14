@@ -2,6 +2,10 @@
  * @file 把一些功能性的东西放在了这个里面，辅助 compoennt/Editor.tsx 组件的。
  * 编辑器非 UI 相关的东西应该放在这。
  */
+
+import findIndex from 'lodash/findIndex';
+import uniqBy from 'lodash/uniqBy';
+import omit from 'lodash/omit';
 import {getRenderers, RenderOptions, mapTree} from 'amis-core';
 import {
   PluginInterface,
@@ -47,35 +51,29 @@ import {
   isString,
   isObject,
   isLayoutPlugin,
-  JSONPipeOut,
-  generateNodeId,
-  JSONTraverse
+  JSONPipeOut
 } from './util';
 import {reaction} from 'mobx';
 import {hackIn, makeSchemaFormRender, makeWrapper} from './component/factory';
 import {env} from './env';
 import debounce from 'lodash/debounce';
-import sortBy from 'lodash/sortBy';
-import reverse from 'lodash/reverse';
-import cloneDeep from 'lodash/cloneDeep';
 import {openContextMenus, toast, alert, DataScope, DataSchema} from 'amis';
 import {parse, stringify} from 'json-ast-comments';
 import {EditorNodeType} from './store/node';
 import {EditorProps} from './component/Editor';
-import findIndex from 'lodash/findIndex';
 import {EditorDNDManager} from './dnd';
 import {VariableManager} from './variable';
+import {BasePlugin} from './plugin';
 import {IScopedContext} from 'amis';
+
 import type {SchemaObject, SchemaCollection} from 'amis';
 import type {RendererConfig} from 'amis-core';
-import isPlainObject from 'lodash/isPlainObject';
-import {omit} from 'lodash';
 
 export interface EditorManagerConfig
   extends Omit<EditorProps, 'value' | 'onChange'> {}
 
 export interface PluginClass {
-  new (manager: EditorManager, options?: any): PluginInterface;
+  new (manager: EditorManager, options?: any, ctx?: any): PluginInterface;
   id?: string;
   scene?: Array<string>;
 }
@@ -136,6 +134,29 @@ export function getEditorPlugins(options: any = {}) {
   return builtInPlugins.filter(item =>
     (Array.isArray(item) ? item[0] : item).scene?.includes(scene)
   );
+}
+
+/**
+ * 更新当前已经注册的插件
+ */
+export function updateRegisteredEditorPlugin(
+  identifier: string,
+  klass: PluginClass
+) {
+  const idx = findIndex(
+    builtInPlugins,
+    item =>
+      !Array.isArray(item) &&
+      (item.id === identifier || item.name === identifier) &&
+      item?.prototype instanceof BasePlugin
+  );
+
+  if (!~idx) {
+    console.warn(`[amis-editor] 更新插件异常, 未找到指定插件`);
+    return;
+  }
+
+  builtInPlugins.splice(idx, 1, klass);
 }
 
 /**
@@ -218,7 +239,7 @@ export class EditorManager {
             Editor = Editor[0];
           }
 
-          const plugin = new Editor(this, pluginOptions); // 进行一次实例化
+          const plugin = new Editor(this, pluginOptions, config.ctx); // 进行一次实例化
           plugin.order = plugin.order ?? 0;
 
           // 记录动作定义
@@ -788,7 +809,7 @@ export class EditorManager {
       });
     }
 
-    let promises: Array<Promise<any>> = [];
+    let promises: Array<Promise<{type: string; value: any}>> = [];
     listeners.some(listener => {
       const ret = listener.fn.call(null, event);
 
@@ -1213,7 +1234,7 @@ export class EditorManager {
    * @param diff
    */
   @autobind
-  panelChangeValue(value: any, diff?: any) {
+  async panelChangeValue(value: any, diff?: any) {
     const store = this.store;
     const context: ChangeEventContext = {
       ...this.buildEventContext(store.activeId),
@@ -1226,8 +1247,39 @@ export class EditorManager {
       return;
     }
 
+    // 处理异步队列的hook
+    const pendingTaskQueue = uniqBy(await event.pending, 'type');
+    if (pendingTaskQueue.length > 0) {
+      const idx = findIndex(
+        pendingTaskQueue,
+        task => task.type === 'update-value' && task.value !== void 0
+      );
+
+      if (~idx) {
+        const task = pendingTaskQueue[idx];
+
+        value = task.value;
+        store.changeValue(value);
+
+        const updatedContext: ChangeEventContext = {
+          ...this.buildEventContext(store.activeId),
+          value,
+          diff
+        };
+        this.trigger('after-update', updatedContext);
+        return;
+      }
+    }
+
     store.changeValue(value, diff);
-    this.trigger('after-update', context);
+
+    // value 变了需要重新构建一下 context
+    const updatedContext: ChangeEventContext = {
+      ...this.buildEventContext(store.activeId),
+      value,
+      diff
+    };
+    this.trigger('after-update', updatedContext);
   }
 
   /**
@@ -1819,10 +1871,11 @@ export class EditorManager {
     ) {
       return;
     }
-    const plugin = node.info.plugin!;
 
+    const plugin = node.info.plugin!;
     const store = this.store;
     const context: PopOverFormContext = {
+      node,
       body: plugin.popOverBodyCreator
         ? plugin.popOverBodyCreator(this.buildEventContext(node))
         : plugin.popOverBody!,
@@ -1866,7 +1919,7 @@ export class EditorManager {
       return [];
     }
 
-    let scope: DataScope | void;
+    let scope: DataScope | undefined;
     let from = node;
     let region = node;
     const trigger = node;
@@ -1926,7 +1979,7 @@ export class EditorManager {
       return;
     }
 
-    let scope: DataScope | void;
+    let scope: DataScope | undefined;
     let from = node;
     let region = node;
 
@@ -1942,7 +1995,8 @@ export class EditorManager {
     }
 
     while (scope) {
-      const [id, type] = scope.id.split('-');
+      const [id] = scope.id.split('-', 1);
+      const type = scope.id.replace(`${id}-`, '');
       const scopeNode = this.store.getNodeById(id, type);
 
       if (scopeNode) {

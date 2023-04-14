@@ -17,6 +17,7 @@ import {
 import {defaultValue, getSchemaTpl} from 'amis-editor-core';
 import {diff, JSONPipeOut, repeatArray} from 'amis-editor-core';
 import {resolveArrayDatasource} from '../util';
+import {isCrudContext} from '../util';
 
 export class CardsPlugin extends BasePlugin {
   static scene = ['layout'];
@@ -27,6 +28,7 @@ export class CardsPlugin extends BasePlugin {
   // 组件名称
   name = '卡片列表';
   isBaseComponent = true;
+  panelJustify = true;
   description =
     '功能类似于表格，但是用一个个小卡片来展示数据。当前组件需要配置数据源，不自带数据拉取，请优先使用 「CRUD」 组件。';
   docLink = '/amis/zh-CN/components/cards';
@@ -74,7 +76,7 @@ export class CardsPlugin extends BasePlugin {
 
   panelTitle = '卡片集';
   panelBodyCreator = (context: BaseEventContext) => {
-    const isCRUDBody = context.schema.type === 'crud';
+    const isCRUDBody = isCrudContext(context);
     const curPosition = context?.schema?.style?.position;
     const isAbsolute = curPosition === 'fixed' || curPosition === 'absolute';
 
@@ -163,7 +165,7 @@ export class CardsPlugin extends BasePlugin {
               name: 'columnsCount',
               type: 'input-range',
               visibleOn: '!this.leftFixed',
-              min: 0,
+              min: 1,
               max: 12,
               step: 1,
               label: '每行显示个数',
@@ -274,10 +276,11 @@ export class CardsPlugin extends BasePlugin {
       }));
     }
 
-    const {$schema, ...rest} = props;
+    const {$schema, card, ...rest} = props;
 
     return {
       ...JSONPipeOut(rest),
+      card,
       $schema
     };
   }
@@ -287,11 +290,7 @@ export class CardsPlugin extends BasePlugin {
   ): BasicRendererInfo | void {
     const plugin: PluginInterface = this;
     const {renderer, schema} = context;
-    if (
-      !schema.$$id &&
-      schema.$$editor?.renderer.name === 'crud' &&
-      renderer.name === 'cards'
-    ) {
+    if (!schema.$$id && isCrudContext(context) && renderer.name === 'cards') {
       return {
         ...({id: schema.$$editor.id} as any),
         name: plugin.name!,

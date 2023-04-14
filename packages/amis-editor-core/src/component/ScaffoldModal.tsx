@@ -45,7 +45,7 @@ export class ScaffoldModal extends React.Component<SubEditorProps> {
       body = [
         {
           type: 'steps',
-          name: '__steps',
+          name: '__step',
           className: 'ae-Steps',
           steps: body.map((step, index) => ({
             title: step.title,
@@ -196,6 +196,7 @@ export class ScaffoldModal extends React.Component<SubEditorProps> {
     const cx = getTheme(theme || 'cxd').classnames;
 
     const isStepBody = !!scaffoldFormContext?.stepsBody;
+    const canSkip = !!scaffoldFormContext?.canSkip;
     const isLastStep =
       isStepBody &&
       store.scaffoldFormStep === scaffoldFormContext!.body.length - 1;
@@ -214,7 +215,7 @@ export class ScaffoldModal extends React.Component<SubEditorProps> {
           {!store.scaffoldFormBuzy ? (
             <a
               data-position="left"
-              onClick={store.closeScaffoldForm}
+              onClick={this.handleCancelClick}
               className={cx('Modal-close')}
             >
               <Icon icon="close" className="icon" />
@@ -253,6 +254,15 @@ export class ScaffoldModal extends React.Component<SubEditorProps> {
               ) : null}
             </div>
           ) : null}
+
+          {isStepBody && canSkip && isFirstStep && (
+            <Button
+              onClick={this.handleConfirmClick}
+              disabled={store.scaffoldFormBuzy}
+            >
+              跳过向导
+            </Button>
+          )}
           {isStepBody && !isFirstStep && (
             <Button level="primary" onClick={this.goToPrevStep}>
               上一步
