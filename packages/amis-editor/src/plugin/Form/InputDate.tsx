@@ -265,10 +265,6 @@ export class DateControlPlugin extends BasePlugin {
                   required: true
                 }),
                 getSchemaTpl('label'),
-                getSchemaTpl('crudFilterOperator', {
-                  context,
-                  type: 'date'
-                }),
                 getSchemaTpl('selectDateType', {
                   value: this.scaffold.type,
                   onChange: (

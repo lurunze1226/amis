@@ -107,7 +107,6 @@ export class ListControlPlugin extends BasePlugin {
               required: true
             }),
             getSchemaTpl('label'),
-            getSchemaTpl('crudFilterOperator', {context}),
             getSchemaTpl('multiple'),
             getSchemaTpl('extractValue'),
             getSchemaTpl('valueFormula', {
