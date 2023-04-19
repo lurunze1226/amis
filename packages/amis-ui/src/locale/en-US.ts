@@ -371,6 +371,7 @@ register('en-US', {
   'FormulaEditor.variable': 'Variable',
   'FormulaEditor.function': 'Function',
   'FormulaEditor.invalidData': 'invalid data, position or reason is {{err}}',
+  'FormulaEditor.invalidValue': 'invalid value, reason is {{err}}',
   'pullRefresh.pullingText': 'Pull down to refresh...',
   'pullRefresh.loosingText': 'Release to refresh...',
   'pullRefresh.loadingText': 'Loading...',
@@ -398,5 +399,7 @@ register('en-US', {
   'TimeNow': 'Now',
   'IconSelect.all': 'All',
   'IconSelect.choice': 'Icon selection',
-  'Steps.step': 'Step {{index}}'
+  'Steps.step': 'Step {{index}}',
+  'FormulaInput.True': 'True',
+  'FormulaInput.False': 'False'
 });

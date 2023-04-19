@@ -10,6 +10,8 @@ import type {
   VariableItem
 } from 'amis-ui/lib/components/formula/Editor';
 
+import type {FormulaPickerInputSchema} from 'amis-ui/lib/components/formula/Picker';
+
 /**
  * InputFormula 公式编辑器
  * 文档：https://baidu.gitee.io/amis/zh-CN/components/form/input-formula
@@ -120,6 +122,11 @@ export interface InputFormulaControlSchema extends FormBaseControlSchema {
    * 当前输入项字段 name: 用于避免循环绑定自身导致无限渲染
    */
   selfVariableName?: string;
+
+  /**
+   * 输入框的类型
+   */
+  inputSchema?: FormulaPickerInputSchema;
 }
 
 export interface InputFormulaProps
@@ -197,7 +204,8 @@ export class InputFormulaRenderer extends React.Component<InputFormulaProps> {
       data,
       onPickerOpen,
       selfVariableName,
-      env
+      env,
+      inputSchema
     } = this.props;
     let {variables, functions} = this.props;
 
@@ -228,6 +236,7 @@ export class InputFormulaRenderer extends React.Component<InputFormulaProps> {
         borderMode={borderMode}
         placeholder={placeholder}
         mode={inputMode}
+        inputSchema={inputSchema}
         btnLabel={btnLabel}
         level={level}
         btnSize={btnSize}
