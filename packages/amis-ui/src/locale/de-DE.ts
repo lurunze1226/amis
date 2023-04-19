@@ -241,7 +241,8 @@ register('de-DE', {
   'Table.valueField': 'valueField muss vorhanden sein',
   'Table.index': 'Index',
   'Table.add': 'Neu',
-  'Table.addButtonDisabledTip': 'Reichen Sie bei der Inhaltsbearbeitung zuerst ein und erstellen Sie dann eine neue Option',
+  'Table.addButtonDisabledTip':
+    'Reichen Sie bei der Inhaltsbearbeitung zuerst ein und erstellen Sie dann eine neue Option',
   'Table.toggleColumn': 'Spalten anzeigen',
   'Table.searchFields': 'Abfragefelder setzen',
   'Tag.placeholder': 'Noch kein Tag',
@@ -381,6 +382,8 @@ register('de-DE', {
   'FormulaEditor.function': 'Funktion',
   'FormulaEditor.invalidData':
     'Überprüfungsfehler, position or reason is {{err}}',
+  'FormulaEditor.invalidValue':
+    'Überprüfungsfehler, reason is {{err}}',
   'pullRefresh.pullingText': 'Zum Aktualisieren nach unten ziehen...',
   'pullRefresh.loosingText': 'Zum Aktualisieren freigeben...',
   'pullRefresh.loadingText': 'Laden...',
@@ -405,5 +408,7 @@ register('de-DE', {
   'JSONSchema.description': 'Description',
   'JSONSchema.key': 'Key',
   'JSONSchema.array_items': 'Items',
-  'TimeNow': 'Jetzt'
+  'TimeNow': 'Jetzt',
+  'FormulaInput.True': 'Treu',
+  'FormulaInput.False': 'Falsch'
 });

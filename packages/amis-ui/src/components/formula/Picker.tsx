@@ -13,14 +13,32 @@ import {
   themeable,
   localeable,
   parse,
-  Evaluator
+  evaluate,
+  isPureVariable
 } from 'amis-core';
 import Editor from './Editor';
 import ResultBox from '../ResultBox';
 import Button from '../Button';
 import {Icon} from '../icons';
 import Modal from '../Modal';
-import Input from '../Input';
+import FormulaInput from './Input';
+
+export const InputSchemaType = [
+  'text',
+  'number',
+  'boolean',
+  'date',
+  'time',
+  'datetime',
+  'select'
+] as const;
+
+export type FormulaPickerInputSchemaType = (typeof InputSchemaType)[number];
+
+export interface FormulaPickerInputSchema {
+  type: FormulaPickerInputSchemaType;
+  [propName: string]: any;
+}
 
 export interface FormulaPickerProps extends FormulaEditorProps {
   // 新的属性？
@@ -108,6 +126,11 @@ export interface FormulaPickerProps extends FormulaEditorProps {
   data?: any;
 
   /**
+   * 输入框的展示类型
+   */
+  inputSchema?: FormulaPickerInputSchema;
+
+  /**
    * 公式弹出的时候，可以外部设置 variables 和 functions
    */
   onPickerOpen?: (props: FormulaPickerProps) => any;
@@ -125,7 +148,7 @@ export interface FormulaPickerProps extends FormulaEditorProps {
 
 export interface FormulaPickerState {
   isOpened: boolean;
-  value: string;
+  value: any;
   editorValue: string;
   isError: boolean | string;
 
@@ -156,16 +179,29 @@ export class FormulaPicker extends React.Component<
   }
 
   componentDidUpdate(prevProps: FormulaPickerProps) {
-    const value = this.props.value;
+    const {value} = this.props;
+
     if (value !== prevProps.value) {
       this.setState({
-        value: typeof value === 'string' ? value : '',
+        value: typeof value === 'string' || !this.isTextInput() ? value : '',
         editorValue: this.value2EditorValue(this.props)
       });
     }
   }
 
   value2EditorValue(props: FormulaPickerProps) {
+    const {value} = props;
+
+    if (!this.isTextInput()) {
+      let editorValue = '';
+
+      try {
+        editorValue = JSON.stringify(value);
+      } catch (error) {}
+
+      return editorValue;
+    }
+
     if (props.mixedMode) {
       if (
         typeof props.value === 'string' &&
@@ -178,6 +214,16 @@ export class FormulaPicker extends React.Component<
     }
 
     return String(props.value || '');
+  }
+
+  isTextInput() {
+    const {inputSchema} = this.props;
+
+    return (
+      !inputSchema ||
+      inputSchema?.type === 'text' ||
+      !InputSchemaType.includes(inputSchema?.type)
+    );
   }
 
   @autobind
@@ -227,9 +273,35 @@ export class FormulaPicker extends React.Component<
 
   @autobind
   handleEditorConfirm() {
-    const {translate: __} = this.props;
-    const value = this.state.editorValue;
-    this.confirm(value);
+    const {translate: __, inputSchema} = this.props;
+    const {editorValue} = this.state;
+
+    if (this.isTextInput()) {
+      return this.confirm(editorValue);
+    } else if (inputSchema) {
+      let result = editorValue;
+      const schemaType = inputSchema?.type;
+
+      try {
+        const ast = parse(editorValue, {evalMode: true, allowFilter: false});
+
+        if (
+          schemaType === 'select' &&
+          inputSchema.multiple &&
+          ast.type === 'array'
+        ) {
+          result = ast.members.map((i: any) => i.value);
+        } else if (ast.type === 'literal' || ast.type === 'string') {
+          result = ast.value ?? '';
+        }
+      } catch (error) {
+        this.setState({isError: error?.message ?? true});
+        return;
+      }
+
+      this.setState({isError: false});
+      return this.confirm(result);
+    }
   }
 
   confirm(value: string) {
@@ -286,7 +358,23 @@ export class FormulaPicker extends React.Component<
 
   @autobind
   validate(value: string) {
-    const {translate: __} = this.props;
+    const {translate: __, inputSchema} = this.props;
+
+    /** 处理非文本输入场景 */
+    if (inputSchema && !this.isTextInput()) {
+      const schemaType = inputSchema?.type;
+      const errorMsg = __('FormulaEditor.invalidValue', {err: '值格式错误'});
+
+      if (['number', 'boolean'].includes(schemaType)) {
+        return typeof value === schemaType ? true : errorMsg;
+      } else if (['text', 'date', 'time', 'datetime'].includes(schemaType)) {
+        return typeof value === 'string' ? true : errorMsg;
+      } else if (schemaType === 'select' && inputSchema.multiple) {
+        return Array.isArray(value) ? true : errorMsg;
+      } else {
+        return true;
+      }
+    }
 
     try {
       value &&
@@ -330,6 +418,7 @@ export class FormulaPicker extends React.Component<
       variableMode,
       mixedMode,
       evalMode,
+      inputSchema,
       ...rest
     } = this.props;
     const {isOpened, value, editorValue, isError} = this.state;
@@ -347,8 +436,11 @@ export class FormulaPicker extends React.Component<
           <div
             className={cx(
               'FormulaPicker',
-              className,
-              mode === 'input-group' ? 'is-input-group' : ''
+              mode === 'input-group' ? 'is-input-group' : '',
+              {
+                'FormulaPicker--text': this.isTextInput()
+              },
+              className
             )}
             style={style}
           >
@@ -425,7 +517,24 @@ export class FormulaPicker extends React.Component<
             )}
             {mode === 'input-group' && (
               <>
-                <ResultBox
+                <FormulaInput
+                  className={cx(
+                    'FormulaPicker-input',
+                    isOpened ? 'is-active' : '',
+                    !!isError ? 'is-error' : ''
+                  )}
+                  inputSchema={inputSchema}
+                  allowInput={allowInput}
+                  clearable={clearable}
+                  evalMode={evalMode}
+                  value={value}
+                  itemRender={this.renderFormulaValue}
+                  onChange={this.handleInputChange}
+                  disabled={disabled}
+                  borderMode={borderMode}
+                  placeholder={placeholder}
+                />
+                {/* <ResultBox
                   className={cx(
                     'FormulaPicker-input',
                     isOpened ? 'is-active' : '',
@@ -449,7 +558,7 @@ export class FormulaPicker extends React.Component<
                   disabled={disabled}
                   borderMode={borderMode}
                   placeholder={placeholder}
-                />
+                /> */}
 
                 <a
                   className={cx(`FormulaPicker-toggler`)}

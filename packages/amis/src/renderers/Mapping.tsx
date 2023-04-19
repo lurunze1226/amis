@@ -264,10 +264,10 @@ export const MappingField = withStore(props =>
         }
         let realValue = value;
         if (
-          isObject(label)
-          && label.type === 'tag'
-          && !isObject(label.label)
-          && label.label != null
+          isObject(label) &&
+          label.type === 'tag' &&
+          !isObject(label.label) &&
+          label.label != null
         ) {
           realValue = label.label;
         }

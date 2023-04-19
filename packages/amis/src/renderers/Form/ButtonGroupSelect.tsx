@@ -103,6 +103,7 @@ export default class ButtonGroupControl extends React.Component<
     if (options && options.length) {
       body = options.map((option, key) => {
         const active = !!~selectedOptions.indexOf(option);
+
         return render(
           `option/${key}`,
           {

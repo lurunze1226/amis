@@ -47,7 +47,20 @@ export class Value extends React.Component<ValueProps> {
         onChange,
         disabled
       });
-      input = <FormulaPicker {...formula} />;
+      /** 生成指定类型输入框的的公式编辑器，默认覆盖用户配置 */
+      const inputSchema =
+        field.type !== 'custom' && formula?.inputSchema
+          ? {
+              ...formula?.inputSchema,
+              ...field,
+              multiple:
+                field.type === 'select' &&
+                op &&
+                typeof op === 'string' &&
+                ['select_any_in', 'select_not_any_in'].includes(op)
+            }
+          : {};
+      input = <FormulaPicker {...formula} inputSchema={inputSchema} />;
     } else if (field.type === 'text') {
       input = (
         <InputBox
@@ -101,7 +114,7 @@ export class Value extends React.Component<ValueProps> {
     } else if (field.type === 'datetime') {
       input = (
         <DatePicker
-          placeholder={__(field.placeholder) || 'Time.placeholder'}
+          placeholder={__(field.placeholder) || __('Time.placeholder')}
           format={field.format || ''}
           inputFormat={field.inputFormat || 'YYYY-MM-DD HH:mm'}
           value={value ?? field.defaultValue}
