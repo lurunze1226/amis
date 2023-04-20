@@ -260,6 +260,7 @@ export abstract class DSBuilder {
 
   abstract resolveSimpleFilterSchema(config: {
     setting: any;
+    /** 表单项尺寸 */
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'full';
   }): SchemaObject[];
 
