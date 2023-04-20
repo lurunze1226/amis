@@ -303,6 +303,7 @@
 
 .#{$ns}NumberControl--withUnit {
   display: flex;
+
   &:hover {
     .#{$ns}Number,
     .#{$ns}NumberControl-unit {
@@ -361,6 +362,10 @@
   }
   .#{$ns}NumberControl-single-unit {
     cursor: default;
+    padding: 0 var(--inputNumber-base-default-unit-paddingLeft);
+    text-align: center;
+    min-width: unset;
+    background-color: var(--inputNumber-base-single-unit-bg-color);
   }
 }
 .#{$ns}Number--enhance {

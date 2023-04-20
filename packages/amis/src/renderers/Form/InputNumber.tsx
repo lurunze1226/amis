@@ -463,7 +463,7 @@ export default class NumberControl extends React.Component<
           big={big}
           clearValueOnEmpty={clearValueOnEmpty}
         />
-        {unitOptions ? (
+        {Array.isArray(unitOptions) && unitOptions.length !== 0 ? (
           unitOptions.length > 1 ? (
             <Select
               value={unit}
@@ -476,7 +476,7 @@ export default class NumberControl extends React.Component<
             <div
               className={cx(
                 `${ns}NumberControl-unit`,
-                ` ${ns}NumberControl-single-unit`,
+                `${ns}NumberControl-single-unit`,
                 `${ns}Select`
               )}
             >

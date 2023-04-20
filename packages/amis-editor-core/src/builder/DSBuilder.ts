@@ -258,7 +258,11 @@ export abstract class DSBuilder {
     feat?: DSFeatureType;
   }): SchemaObject[];
 
-  abstract resolveSimpleFilterSchema(config: {setting: any}): SchemaObject[];
+  abstract resolveSimpleFilterSchema(config: {
+    setting: any;
+    /** 表单项尺寸 */
+    size?: 'xs' | 'sm' | 'md' | 'lg' | 'full';
+  }): SchemaObject[];
 
   abstract resolveAdvancedFilterSchema(config: {
     setting: any;

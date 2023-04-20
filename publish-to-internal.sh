@@ -5,12 +5,13 @@ npm run build --workspaces
 
 rm -rf npm
 mkdir npm
+mkdir npm/packages
 
 # 如果有问题可以注释掉这两行，不知道为啥会导致 cp -rf 挂掉
 # rm -rf packages/amis/node_modules/.bin
 # rm -rf packages/amis-ui/node_modules/.bin
 
-cp -rf packages npm
+cp -r packages/amis-formula packages/amis-core packages/amis-ui packages/amis npm/packages
 cp package.json npm
 
 # 记录last commit，便于区分内网版本包之间的差异
