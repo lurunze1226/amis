@@ -151,9 +151,19 @@ export interface CRUD2CommonSchema extends BaseSchema, SpinnerExtraProps {
   headerToolbar?: SchemaCollection;
 
   /**
+   * 底部区域CSS类名
+   */
+  headerToolbarClassName?: string;
+
+  /**
    * 底部区域
    */
   footerToolbar?: SchemaCollection;
+
+  /**
+   * 底部区域CSS类名
+   */
+  footerToolbarClassName?: string;
 
   /**
    * 是否将接口返回的内容自动同步到地址栏，前提是开启了同步地址栏。
@@ -220,7 +230,9 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
     'onSaved',
     'onQuery',
     'autoFillHeight',
-    'showSelection'
+    'showSelection',
+    'headerToolbarClassName',
+    'footerToolbarClassName'
   ];
   static defaultProps = {
     toolbarInline: true,
@@ -1144,7 +1156,9 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
       autoFillHeight,
       showSelection,
       headerToolbar,
+      headerToolbarClassName,
       footerToolbar,
+      footerToolbarClassName,
       // columnsTogglable 在本渲染器中渲染，不需要 table 渲染，避免重复
       columnsTogglable,
       ...rest
@@ -1159,7 +1173,7 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
       >
         <div className={cx('Crud2-filter')}>{this.renderFilter(filter)}</div>
 
-        <div className={cx('Crud2-toolbar')}>
+        <div className={cx('Crud2-toolbar', headerToolbarClassName)}>
           {this.renderToolbar('headerToolbar', headerToolbar)}
         </div>
 
@@ -1211,7 +1225,7 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
         {/* spinner可以交给孩子处理 */}
         {/* <Spinner overlay size="lg" key="info" show={store.loading} /> */}
 
-        <div className={cx('Crud2-toolbar')}>
+        <div className={cx('Crud2-toolbar', footerToolbarClassName)}>
           {this.renderToolbar('footerToolbar', footerToolbar)}
         </div>
       </div>
