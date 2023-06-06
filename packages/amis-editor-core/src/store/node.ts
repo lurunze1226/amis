@@ -60,10 +60,7 @@ export const EditorNode = types
     children: types.optional(
       types.array(types.late((): IAnyModelType => EditorNode)),
       []
-    ),
-
-    /** 节点额外存储的信息 */
-    extra: types.optional(types.frozen(), {})
+    )
   })
   .volatile(() => ({
     getData: types.frozen<() => any>()
@@ -289,7 +286,6 @@ export const EditorNode = types
           name: string;
           path: string;
           schema: Record<string, any>;
-          extra: Record<string, any>;
         }> = [];
 
         eachTree(self.children, (node: EditorNodeType) => {
@@ -300,8 +296,7 @@ export const EditorNode = types
               schema: childSchema,
               label: childSchema.label ?? '',
               name: childSchema.name,
-              path: node.path,
-              extra: node.extra
+              path: node.path
             });
           }
         });
@@ -582,7 +577,7 @@ export const EditorNode = types
 
       while (cursor) {
         const nodeSchema = cursor.schema ?? {};
-        const sourceKey = nodeSchema?.type === 'form' ? 'initApi' : 'api';
+        const sourceKey = 'api';
 
         if (
           ['service', 'crud2', 'form'].includes(nodeSchema?.type) &&
@@ -630,6 +625,7 @@ export const EditorNode = types
         regionInfo?: RegionConfig;
         widthMutable?: boolean;
         memberIndex?: number;
+        state?: Record<string, any>;
       }) {
         self.children.push({
           ...props,
@@ -777,16 +773,21 @@ export const EditorNode = types
         };
       },
 
+      updateStateByKey(key: string, value: any) {
+        if (self.state.hasOwnProperty(key)) {
+          self.state = {
+            ...self.state,
+            [key]: value
+          };
+        }
+      },
+
       setWidthMutable(value: any) {
         self.widthMutable = !!value;
       },
 
       setHeightMutable(value: any) {
         self.heightMutable = !!value;
-      },
-
-      setExtraData(value: any) {
-        self.extra = isPlainObject(value) ? value : {data: value};
       }
     };
   });

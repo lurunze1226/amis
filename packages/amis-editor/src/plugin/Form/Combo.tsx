@@ -9,7 +9,10 @@ import {
   tipedLabel,
   mockValue,
   RegionConfig,
-  getI18nEnabled
+  getI18nEnabled,
+  EditorNodeType,
+  EditorManager,
+  DSBuilderManager
 } from 'amis-editor-core';
 
 import {setVariable} from 'amis-core';
@@ -211,6 +214,13 @@ export class ComboControlPlugin extends BasePlugin {
   notRenderFormZone = true;
 
   panelJustify = true;
+
+  dsBuilderManager: DSBuilderManager;
+
+  constructor(manager: EditorManager) {
+    super(manager);
+    this.dsBuilderManager = new DSBuilderManager('combo', 'api');
+  }
 
   panelBodyCreator = (context: BaseEventContext) => {
     const i18nEnabled = getI18nEnabled();
@@ -635,6 +645,32 @@ export class ComboControlPlugin extends BasePlugin {
       renderMethod: 'renderItems'
     }
   ];
+
+  async getAvailableContextFields(
+    scopeNode: EditorNodeType,
+    target: EditorNodeType,
+    region?: EditorNodeType
+  ) {
+    if (target.parent.isRegion && target.parent.region === 'items') {
+      const scope = scopeNode.parent.parent;
+      const builder = this.dsBuilderManager.resolveBuilderBySchema(
+        scope.schema,
+        'api'
+      );
+
+      if (builder && scope.schema.api) {
+        return builder.getAvailableContextFileds(
+          {
+            schema: scope.schema,
+            sourceKey: 'api',
+            feat: scope.schema?.feat ?? 'List',
+            scopeNode
+          },
+          target
+        );
+      }
+    }
+  }
 }
 
 registerEditorPlugin(ComboControlPlugin);

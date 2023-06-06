@@ -54,6 +54,7 @@ import {
   JSONPipeOut
 } from './util';
 import {reaction} from 'mobx';
+import {isAlive} from 'mobx-state-tree';
 import {hackIn, makeSchemaFormRender, makeWrapper} from './component/factory';
 import {env} from './env';
 import debounce from 'lodash/debounce';
@@ -84,7 +85,6 @@ export interface EditorManagerConfig
 export interface PluginClass {
   new (manager: EditorManager, options?: any, ctx?: any): PluginInterface;
   id?: string;
-  scene?: Array<string>;
   scene?: Array<string>;
 }
 
@@ -361,7 +361,12 @@ export class EditorManager {
     );
   }
 
-  normalizeScene(plugins?: Array<PluginClass>) {
+  normalizeScene(
+    plugins?: Array<
+      | PluginClass
+      | [PluginClass, Record<string, any> | (() => Record<string, any>)]
+    >
+  ) {
     return (
       plugins?.map((klass: PluginClass) => {
         // 处理插件身上的场景信息
@@ -1683,10 +1688,11 @@ export class EditorManager {
   }
 
   async scaffold(form: any, value: any): Promise<SchemaObject> {
+    const scaffoldFormData = form.pipeIn ? await form.pipeIn(value) : value;
     return new Promise(resolve => {
       this.store.openScaffoldForm({
         ...form,
-        value: form.pipeIn ? form.pipeIn(value) : value,
+        value: scaffoldFormData,
         callback: resolve
       });
     });
@@ -1725,7 +1731,7 @@ export class EditorManager {
           patchList(node.uniqueChildren);
         }
 
-        if (!node.isRegion) {
+        if (isAlive(node) && !node.isRegion) {
           node.patch(this.store, force);
         }
       });
@@ -1918,7 +1924,7 @@ export class EditorManager {
       return [];
     }
 
-    let scope: DataScope | void;
+    let scope: DataScope | void = /* initialize */ undefined;
     let from = node;
     let region = node;
     const trigger = node;
@@ -1978,19 +1984,32 @@ export class EditorManager {
       return;
     }
 
-    let scope: DataScope | void;
+    let scope: DataScope | void = /* initialize */ undefined;
     let from = node;
     let region = node;
 
     // 查找最近一层的数据域
     while (!scope && from) {
+      // 优先获取上下文数据域
       scope = this.dataSchema.hasScope(`${from.id}-${from.type}`)
         ? this.dataSchema.getScope(`${from.id}-${from.type}`)
         : undefined;
+
+      /** Combo和InputTable作为绑定对多字段容器且子字段可继续绑定 */
+      if (!scope) {
+        if (['combo', 'input-table'].includes(from?.info?.type)) {
+          break;
+        }
+      }
+
       from = from.parent;
       if (from?.isRegion) {
         region = from;
       }
+    }
+
+    if (!scope) {
+      return from?.info.plugin.getAvailableContextFields?.(from, node);
     }
 
     while (scope) {

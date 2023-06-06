@@ -11,6 +11,7 @@ import {
   qsstringify,
   cloneObject,
   createObject,
+  extendObject,
   qsparse,
   uuid,
   JSONTraverse
@@ -286,15 +287,14 @@ export function buildApi(
     api.method = 'post';
     api.jsonql = dataMapping(
       api.jsonql,
-      {
-        ...api.query,
-        ...data
-      },
+      /** 需要把上层数据传入 */
+      extendObject(data, {...api.query, ...data}, false),
       undefined,
       false,
       true
     );
-    api.body = api.data = api.jsonql;
+    /** JSONQL查询语句和携带的数据都在jsonql这个key下面 */
+    api.body = api.data = {jsonql: api.jsonql};
   }
 
   return api;
