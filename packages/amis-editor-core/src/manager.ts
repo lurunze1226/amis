@@ -54,6 +54,7 @@ import {
   JSONPipeOut
 } from './util';
 import {reaction} from 'mobx';
+import {isAlive} from 'mobx-state-tree';
 import {hackIn, makeSchemaFormRender, makeWrapper} from './component/factory';
 import {env} from './env';
 import debounce from 'lodash/debounce';
@@ -1684,10 +1685,11 @@ export class EditorManager {
   }
 
   async scaffold(form: any, value: any): Promise<SchemaObject> {
+    const scaffoldFormData = form.pipeIn ? await form.pipeIn(value) : value;
     return new Promise(resolve => {
       this.store.openScaffoldForm({
         ...form,
-        value: form.pipeIn ? form.pipeIn(value) : value,
+        value: scaffoldFormData,
         callback: resolve
       });
     });
@@ -1726,7 +1728,7 @@ export class EditorManager {
           patchList(node.uniqueChildren);
         }
 
-        if (!node.isRegion) {
+        if (isAlive(node) && !node.isRegion) {
           node.patch(this.store, force);
         }
       });
@@ -1919,7 +1921,7 @@ export class EditorManager {
       return [];
     }
 
-    let scope: DataScope | undefined;
+    let scope: DataScope | void = /* initialize */ undefined;
     let from = node;
     let region = node;
     const trigger = node;
@@ -1979,19 +1981,32 @@ export class EditorManager {
       return;
     }
 
-    let scope: DataScope | undefined;
+    let scope: DataScope | void = /* initialize */ undefined;
     let from = node;
     let region = node;
 
     // 查找最近一层的数据域
     while (!scope && from) {
+      // 优先获取上下文数据域
       scope = this.dataSchema.hasScope(`${from.id}-${from.type}`)
         ? this.dataSchema.getScope(`${from.id}-${from.type}`)
         : undefined;
+
+      /** Combo和InputTable作为绑定对多字段容器且子字段可继续绑定 */
+      if (!scope) {
+        if (['combo', 'input-table'].includes(from?.info?.type)) {
+          break;
+        }
+      }
+
       from = from.parent;
       if (from?.isRegion) {
         region = from;
       }
+    }
+
+    if (!scope) {
+      return from?.info.plugin.getAvailableContextFields?.(from, node);
     }
 
     while (scope) {
