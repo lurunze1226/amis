@@ -124,12 +124,10 @@ const autoAddOptions = (values: any) => {
 };
 
 export class FormPlugin extends BasePlugin {
-  // 这个 id 是为了可以把它 disabled 掉
   static id = 'FormPlugin';
   // 关联渲染器名字
   rendererName = 'form';
   $schema = '/schemas/FormSchema.json';
-
   // 组件名称
   name = '表单';
   isBaseComponent = true;
@@ -237,9 +235,9 @@ export class FormPlugin extends BasePlugin {
     },
 
     {
-      label: '按钮组',
+      label: '操作区',
       key: 'actions',
-      preferTag: '按钮'
+      preferTag: '操作按钮'
     }
   ];
 

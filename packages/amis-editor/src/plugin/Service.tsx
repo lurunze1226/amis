@@ -135,7 +135,7 @@ export class ServicePlugin extends BasePlugin {
 
   dsBuilderMgr: DSBuilderManager;
 
-  constructor(manager: EditorManager, options: any, ctx: any) {
+  constructor(manager: EditorManager) {
     super(manager);
 
     this.dsBuilderMgr = new DSBuilderManager('service', 'api');

@@ -133,11 +133,12 @@ export class ScaffoldModal extends React.Component<SubEditorProps> {
 
   @autobind
   goToNextStep() {
-    // 不能更新props的data，控制amis不重新渲染，否则数据会重新初始化
     const store = this.props.store;
     const form = this.amisScope?.getComponents()[0].props.store;
     const step = store.scaffoldFormStep + 1;
     form.setValueByName('__step', step);
+    /** 切换步骤导致schema重新渲染，Form数据域中的数据会丢失 */
+    store.updateScaffoldData(form?.data, true);
 
     // 控制按钮
     store.setScaffoldStep(step);
@@ -150,6 +151,7 @@ export class ScaffoldModal extends React.Component<SubEditorProps> {
     const form = this.amisScope?.getComponents()[0].props.store;
     const step = store.scaffoldFormStep - 1;
     form.setValueByName('__step', step);
+    store.updateScaffoldData(form?.data, true);
 
     // 控制按钮
     store.setScaffoldStep(step);

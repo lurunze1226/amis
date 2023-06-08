@@ -76,6 +76,8 @@ export interface EditorManagerConfig
 export interface PluginClass {
   new (manager: EditorManager, options?: any, ctx?: any): PluginInterface;
   id?: string;
+  /** 优先级，值为整数，plugin同ID时数字更大的plugin优先级更高，只有设置的时候才会比较 */
+  priority?: number;
   scene?: Array<string>;
 }
 
@@ -108,22 +110,59 @@ export function registerEditorPlugin(klass: PluginClass) {
   // 处理插件身上的场景信息
   const scene = Array.from(new Set(['global'].concat(klass.scene || 'global')));
   klass.scene = scene;
-  let isExitPlugin: any = null;
+  let exsitedPluginIdx: any = null;
+
   if (klass.prototype && klass.prototype.isNpmCustomWidget) {
-    isExitPlugin = builtInPlugins.find(item =>
+    exsitedPluginIdx = builtInPlugins.findIndex(item =>
       Array.isArray(item)
         ? item[0].prototype.name === klass.prototype.name
         : item.prototype.name === klass.prototype.name
     );
   } else {
     // 待进一步优化
-    isExitPlugin = builtInPlugins.find(item => item === klass);
+    exsitedPluginIdx = builtInPlugins.findIndex(item => item === klass);
   }
-  if (!isExitPlugin) {
+
+  /** 先给新加入的plugin加一个ID */
+  if (!~exsitedPluginIdx) {
     klass.id = klass.id || klass.name || guid();
-    builtInPlugins.push(klass);
+  }
+
+  /** 因为class的继承关系，未设置ID的子class会和父class共用ID, 这种情况就不判断了 */
+  if (klass.priority == null || !Number.isInteger(klass.priority)) {
+    if (!~exsitedPluginIdx) {
+      builtInPlugins.push(klass);
+    } else {
+      console.warn(`注册插件异常，已存在同名插件：`, klass);
+    }
   } else {
-    console.warn(`注册插件异常，已存在同名插件：`, klass);
+    /** 只有设置了priority的时候才会执行同ID去重 */
+    exsitedPluginIdx = ~exsitedPluginIdx
+      ? exsitedPluginIdx
+      : builtInPlugins.findIndex(
+          item =>
+            !Array.isArray(item) &&
+            item.id === klass.id &&
+            item?.prototype instanceof BasePlugin
+        );
+
+    if (!~exsitedPluginIdx) {
+      builtInPlugins.push(klass);
+    } else {
+      const current = builtInPlugins[exsitedPluginIdx] as PluginClass;
+
+      /** 同ID的插件根据优先级决定是否update */
+      const currentPriority =
+        current.priority && Number.isInteger(current.priority)
+          ? current.priority
+          : 0;
+
+      if (klass.priority > currentPriority) {
+        builtInPlugins.splice(exsitedPluginIdx, 1, klass);
+      } else {
+        console.warn(`注册插件「${klass.id}」异常，已存在同名插件：`, klass);
+      }
+    }
   }
 }
 
@@ -135,29 +174,6 @@ export function getEditorPlugins(options: any = {}) {
   return builtInPlugins.filter(item =>
     (Array.isArray(item) ? item[0] : item).scene?.includes(scene)
   );
-}
-
-/**
- * 更新当前已经注册的插件
- */
-export function updateRegisteredEditorPlugin(
-  identifier: string,
-  klass: PluginClass
-) {
-  const idx = findIndex(
-    builtInPlugins,
-    item =>
-      !Array.isArray(item) &&
-      (item.id === identifier || item.name === identifier) &&
-      item?.prototype instanceof BasePlugin
-  );
-
-  if (!~idx) {
-    console.warn(`[amis-editor] 更新插件异常, 未找到指定插件`);
-    return;
-  }
-
-  builtInPlugins.splice(idx, 1, klass);
 }
 
 /**
@@ -220,6 +236,38 @@ export class EditorManager {
     // 自动加载预先注册的自定义组件
     autoPreRegisterEditorCustomPlugins();
     const scene = config.scene || 'global';
+    const externalPlugins = config?.plugins || [];
+    /** 根据外部注册的Plugin执行去重 */
+    externalPlugins.forEach(external => {
+      if (
+        Array.isArray(external) ||
+        !external.priority ||
+        !Number.isInteger(external.priority)
+      ) {
+        return;
+      }
+
+      const idx = builtInPlugins.findIndex(
+        builtIn =>
+          !Array.isArray(builtIn) &&
+          !Array.isArray(external) &&
+          builtIn.id === external.id &&
+          builtIn?.prototype instanceof BasePlugin
+      );
+
+      if (~idx) {
+        const current = builtInPlugins[idx] as PluginClass;
+        const currentPriority =
+          current.priority && Number.isInteger(current.priority)
+            ? current.priority
+            : 0;
+        /** 同ID的插件根据优先级决定是否update */
+        if (external.priority > currentPriority) {
+          builtInPlugins.splice(idx, 1);
+        }
+      }
+    });
+
     this.plugins =
       parent?.plugins ||
       (config.disableBultinPlugin ? [] : builtInPlugins) // 页面设计器注册的插件列表
@@ -1249,38 +1297,38 @@ export class EditorManager {
     }
 
     // 处理异步队列的hook
-    const pendingTaskQueue = uniqBy(await event.pending, 'type');
-    if (pendingTaskQueue.length > 0) {
-      const idx = findIndex(
-        pendingTaskQueue,
-        task => task.type === 'update-value' && task.value !== void 0
-      );
+    // const pendingTaskQueue = uniqBy(await event.pending, 'type');
+    // if (pendingTaskQueue.length > 0) {
+    //   const idx = findIndex(
+    //     pendingTaskQueue,
+    //     task => task.type === 'update-value' && task.value !== void 0
+    //   );
 
-      if (~idx) {
-        const task = pendingTaskQueue[idx];
+    //   if (~idx) {
+    //     const task = pendingTaskQueue[idx];
 
-        value = task.value;
-        store.changeValue(value);
+    //     value = task.value;
+    //     store.changeValue(value);
 
-        const updatedContext: ChangeEventContext = {
-          ...this.buildEventContext(store.activeId),
-          value,
-          diff
-        };
-        this.trigger('after-update', updatedContext);
-        return;
-      }
-    }
+    //     const updatedContext: ChangeEventContext = {
+    //       ...this.buildEventContext(store.activeId),
+    //       value,
+    //       diff
+    //     };
+    //     this.trigger('after-update', updatedContext);
+    //     return;
+    //   }
+    // }
 
     store.changeValue(value, diff);
 
     // value 变了需要重新构建一下 context
-    const updatedContext: ChangeEventContext = {
-      ...this.buildEventContext(store.activeId),
-      value,
-      diff
-    };
-    this.trigger('after-update', updatedContext);
+    // const updatedContext: ChangeEventContext = {
+    //   ...this.buildEventContext(store.activeId),
+    //   value,
+    //   diff
+    // };
+    // this.trigger('after-update', updatedContext);
   }
 
   /**

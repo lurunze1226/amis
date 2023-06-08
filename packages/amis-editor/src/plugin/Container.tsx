@@ -11,7 +11,7 @@ import {
 } from 'amis-editor-core';
 
 export class ContainerPlugin extends LayoutBasePlugin {
-  static scene = ['layout'];
+  static id = 'ContainerPlugin';
   static scene = ['layout'];
   // 关联渲染器名字
   rendererName = 'container';

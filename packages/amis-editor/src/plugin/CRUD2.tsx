@@ -566,6 +566,8 @@ const generatePreviewSchema = (mode: 'table2' | 'cards' | 'list') => {
 };
 
 export class CRUD2Plugin extends BasePlugin {
+  static id = 'CRUD2Plugin';
+
   constructor(manager: EditorManager) {
     super(manager);
     this.dsBuilderMgr = new DSBuilderManager('crud2', 'api');
@@ -1535,6 +1537,7 @@ export class CRUD2Plugin extends BasePlugin {
 }
 
 export class TableCRUDPlugin extends CRUD2Plugin {
+  static id = 'TableCRUDPlugin';
   // 组件名称
   name = '表格';
   isBaseComponent = true;
@@ -1853,6 +1856,7 @@ export class TableCRUDPlugin extends CRUD2Plugin {
 }
 
 export class CardsCRUDPlugin extends CRUD2Plugin {
+  static id = 'CardsCRUDPlugin';
   // 组件名称
   name = '卡片列表';
   isBaseComponent = true;
@@ -1979,6 +1983,7 @@ export class CardsCRUDPlugin extends CRUD2Plugin {
 }
 
 export class ListCRUDPlugin extends CRUD2Plugin {
+  static id = 'ListCRUDPlugin';
   // 组件名称
   name = '列表';
   isBaseComponent = true;
@@ -2060,7 +2065,7 @@ export class ListCRUDPlugin extends CRUD2Plugin {
     return findObj(schema.listItem.body, item => item.behavior === feat);
   }
 }
-// 还是得去掉注册，否则脚手架一些配置会从这边取
-// registerEditorPlugin(TableCRUDPlugin);
-// registerEditorPlugin(CardsCRUDPlugin);
-// registerEditorPlugin(ListCRUDPlugin);
+
+registerEditorPlugin(TableCRUDPlugin);
+registerEditorPlugin(CardsCRUDPlugin);
+registerEditorPlugin(ListCRUDPlugin);

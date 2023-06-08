@@ -11,7 +11,6 @@ editroCoreLatestVersion=`npm info @fex/amis-editor-core --registry=http://regist
 echo "amis-editor最新版本：${editorLatestVersion}"
 echo "amis-editor-core最新版本：${editroCoreLatestVersion}"
 
-
 read -p  "请输入amis-editor版本: " version1
 
 read -p "请输入amis-editor-core版本: " version2
@@ -36,6 +35,7 @@ cp -rf packages/amis-editor-core/esm npm/amis-editor-core
 cp -rf packages/amis-editor-core/static npm/amis-editor-core
 cp packages/amis-editor-core/package.json npm/amis-editor-core
 cp packages/amis-editor-core/src/locale/* npm/amis-editor-core/lib/locale
+
 
 cd npm
 

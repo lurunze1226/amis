@@ -97,7 +97,7 @@ export class SubEditor extends React.Component<SubEditorProps> {
   }
 
   buildSchema() {
-    const {store, manager, amisEnv, node, data} = this.props;
+    const {store, manager, amisEnv} = this.props;
     const subEditorContext = store.subEditorContext;
     const config = manager.config;
     let superEditorData: any = store.superEditorData;

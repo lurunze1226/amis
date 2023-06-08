@@ -59,7 +59,7 @@ export class Value extends React.Component<ValueProps> {
                 typeof op === 'string' &&
                 ['select_any_in', 'select_not_any_in'].includes(op)
             }
-          : {};
+          : undefined;
       input = <FormulaPicker {...formula} inputSchema={inputSchema} />;
     } else if (field.type === 'text') {
       input = (
