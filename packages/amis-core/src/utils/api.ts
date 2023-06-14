@@ -296,6 +296,25 @@ export function buildApi(
     );
     /** JSONQL查询语句和携带的数据都在jsonql这个key下面 */
     api.body = api.data = {jsonql: api.jsonql};
+
+    /** JSONQL需要追加变量到query中 */
+    if (api.forceAppendDataToQuery) {
+      const idx = api.url.indexOf('?');
+      if (~idx) {
+        let params = (api.query = {
+          ...qsparse(api.url.substring(idx + 1)),
+          ...api.query,
+          ...data
+        });
+        api.url = api.url.substring(0, idx) + '?' + queryStringify(params);
+      } else {
+        api.query = {...api.query, ...data};
+        const query = queryStringify(data);
+        if (query) {
+          api.url = `${api.url}?${query}`;
+        }
+      }
+    }
   }
 
   return api;

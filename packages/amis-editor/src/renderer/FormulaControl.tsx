@@ -379,8 +379,42 @@ export default class FormulaControl extends React.Component<
     this.closeFormulaPicker();
   }
 
+  /**
+   * 公式编辑器打开完成一些异步任务的加载
+   */
   @autobind
-  handleFormulaClick() {
+  async beforeFormulaEditorOpen() {
+    const {node, manager, data} = this.props;
+    const onFormulaEditorOpen = manager?.config?.onFormulaEditorOpen;
+
+    this.setState({loading: true});
+
+    try {
+      if (
+        manager &&
+        onFormulaEditorOpen &&
+        typeof onFormulaEditorOpen === 'function'
+      ) {
+        const res = await onFormulaEditorOpen(node, manager, data);
+
+        if (res !== false) {
+          const variables = await getVariables(this);
+          this.setState({variables});
+        }
+      }
+    } catch (error) {
+      console.error('[amis-editor] onFormulaEditorOpen failed: ', error?.stack);
+    }
+
+    this.setState({loading: false});
+  }
+
+  @autobind
+  async handleFormulaClick() {
+    try {
+      await this.beforeFormulaEditorOpen();
+    } catch (error) {}
+
     this.setState({
       formulaPickerOpen: true
     });
@@ -506,36 +540,6 @@ export default class FormulaControl extends React.Component<
     }
 
     return curContextData;
-  }
-
-  /**
-   * 公式编辑器打开前做一些
-   */
-  @autobind
-  async handleFormulaEditorOpen() {
-    const {node, manager, data} = this.props;
-    const onFormulaEditorOpen = manager?.config?.onFormulaEditorOpen;
-
-    this.setState({loading: true});
-
-    try {
-      if (
-        manager &&
-        onFormulaEditorOpen &&
-        typeof onFormulaEditorOpen === 'function'
-      ) {
-        const res = await onFormulaEditorOpen(node, manager, data);
-
-        if (res !== false) {
-          const variables = await getVariables(this);
-          this.setState({variables});
-        }
-      }
-    } catch (error) {
-      console.error('[amis-editor] onFormulaEditorOpen failed: ', error?.stack);
-    }
-
-    this.setState({loading: false});
   }
 
   render() {
@@ -719,7 +723,7 @@ export default class FormulaControl extends React.Component<
               }}
               onClick={async (e: React.MouseEvent) => {
                 try {
-                  await this.handleFormulaEditorOpen();
+                  await this.beforeFormulaEditorOpen();
                 } catch (error) {}
 
                 onClick(e);

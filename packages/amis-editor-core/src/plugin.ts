@@ -289,8 +289,9 @@ export interface RendererInfo extends RendererScaffoldInfo {
   // 如果是虚拟的渲染器
   hostId?: string;
   memberIndex?: number;
-
   tipName?: string;
+  /** 共享上下文 */
+  sharedContext?: Record<string, any>;
 }
 
 export type BasicRendererInfo = Omit<

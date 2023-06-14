@@ -25,6 +25,7 @@ import type {Schema} from 'amis';
 import type {DataScope} from 'amis-core';
 import type {RendererConfig} from 'amis-core';
 import type {SchemaCollection} from 'amis';
+import type {DiffChange} from '../util';
 import {omit} from 'lodash';
 
 // 创建 Node Store 并构建成树
@@ -250,7 +251,7 @@ function SchemaFrom({
   justify?: boolean;
   ctx?: any;
   pipeIn?: (value: any) => any;
-  pipeOut?: (value: any) => any;
+  pipeOut?: (value: any, oldValue: any, diff?: DiffChange[]) => any;
 }) {
   let containerKey = 'body';
 
@@ -308,10 +309,12 @@ function SchemaFrom({
     schema,
     {
       onFinished: async (newValue: any) => {
-        newValue = deleteThemeConfigData(
-          pipeOut ? await pipeOut(newValue) : newValue
-        );
+        newValue = deleteThemeConfigData(newValue);
+        /** diff的时候不应该带上主题配置 */
         const diffValue = diff(value, newValue);
+        newValue = pipeOut
+          ? await pipeOut(newValue, value, diffValue)
+          : newValue;
         onChange(newValue, diffValue);
       },
       data: ctx ? createObject(ctx, finalValue) : finalValue,

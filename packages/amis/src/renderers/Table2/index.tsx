@@ -412,7 +412,7 @@ export interface Table2Props extends RendererProps, SpinnerExtraProps {
   onSaveOrder?: Function;
   onPristineChange?: Function;
   onAction?: Function;
-  onSort?: Function;
+  onSort?: (payload: {orderBy: string; orderDir: string}) => void;
   onSearch?: Function;
   onRow?: OnRowProps;
   placeholder?: string | SchemaObject;
@@ -1152,19 +1152,20 @@ export default class Table2 extends React.Component<Table2Props, object> {
   @autobind
   async handleSort(payload: SortProps) {
     const {dispatchEvent, data, onSort} = this.props;
+    const normalizedPayload = {
+      orderBy: payload.orderBy,
+      orderDir: payload.order
+    };
     const rendererEvent = await dispatchEvent(
       'columnSort',
-      createObject(data, {
-        orderBy: payload.orderBy,
-        orderDir: payload.order
-      })
+      createObject(data, normalizedPayload)
     );
 
     if (rendererEvent?.prevented) {
       return rendererEvent?.prevented;
     }
 
-    onSort && onSort(payload);
+    onSort && onSort(normalizedPayload);
   }
 
   @autobind
