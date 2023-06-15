@@ -295,7 +295,8 @@ export abstract class DSBuilder {
       schema: any;
       sourceKey: string;
       feat: DSFeatureType;
-      scopeNode: EditorNodeType;
+      /** 如果为对多关系容器，则会返回对应的节点 */
+      scopeNode?: EditorNodeType;
     },
     target: EditorNodeType
   ): Promise<SchemaCollection | void>;

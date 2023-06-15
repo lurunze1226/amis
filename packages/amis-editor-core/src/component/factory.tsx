@@ -251,7 +251,7 @@ function SchemaFrom({
   justify?: boolean;
   ctx?: any;
   pipeIn?: (value: any) => any;
-  pipeOut?: (value: any, oldValue: any, diff?: DiffChange[]) => any;
+  pipeOut?: (value: any, oldValue: any) => any;
 }) {
   let containerKey = 'body';
 
@@ -310,11 +310,9 @@ function SchemaFrom({
     {
       onFinished: async (newValue: any) => {
         newValue = deleteThemeConfigData(newValue);
-        /** diff的时候不应该带上主题配置 */
+        newValue = pipeOut ? await pipeOut(newValue, value) : newValue;
+
         const diffValue = diff(value, newValue);
-        newValue = pipeOut
-          ? await pipeOut(newValue, value, diffValue)
-          : newValue;
         onChange(newValue, diffValue);
       },
       data: ctx ? createObject(ctx, finalValue) : finalValue,

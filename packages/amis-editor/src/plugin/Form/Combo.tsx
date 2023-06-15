@@ -671,8 +671,8 @@ export class ComboControlPlugin extends BasePlugin {
           feat: scope.schema?.feat ?? 'List',
           scopeNode
         },
-        /** 本体 */
-        target?.type === scopeNode?.type ? scope : target
+        /** ID相同为本体，否则为子项 */
+        target?.id === scopeNode?.id ? scopeNode : target
       );
     }
   }
