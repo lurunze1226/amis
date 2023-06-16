@@ -251,7 +251,7 @@ function SchemaFrom({
   justify?: boolean;
   ctx?: any;
   pipeIn?: (value: any) => any;
-  pipeOut?: (value: any, oldValue: any) => any;
+  pipeOut?: (value: any) => any;
 }) {
   let containerKey = 'body';
 
@@ -309,9 +309,9 @@ function SchemaFrom({
     schema,
     {
       onFinished: async (newValue: any) => {
-        newValue = deleteThemeConfigData(newValue);
-        newValue = pipeOut ? await pipeOut(newValue, value) : newValue;
-
+        newValue = deleteThemeConfigData(
+          pipeOut ? await pipeOut(newValue) : newValue
+        );
         const diffValue = diff(value, newValue);
         onChange(newValue, diffValue);
       },
