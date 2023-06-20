@@ -1194,6 +1194,7 @@ export class Table extends React.PureComponent<TableProps, TableState> {
     record?: any,
     rowIndex?: number
   ) {
+    event.persist(); // 等 react 17之后去掉 event pooling 了，这个应该就没用了
     const {classnames: cx, onRow} = this.props;
 
     if (onRow && onRow.onRowMouseEnter) {
@@ -1218,7 +1219,7 @@ export class Table extends React.PureComponent<TableProps, TableState> {
     if (record) {
       let target = event.target;
       if (target?.tagName !== 'TR') {
-        target = target.closest('tr');
+        target = target?.closest('tr');
       }
 
       this.setState({hoverRow: {target, rowIndex, record}});

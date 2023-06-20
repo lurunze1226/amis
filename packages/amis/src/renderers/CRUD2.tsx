@@ -12,7 +12,8 @@ import {
   qsparse,
   isArrayChildrenModified,
   autobind,
-  parseQuery
+  parseQuery,
+  isObject
 } from 'amis-core';
 import {ScopedContext, IScopedContext} from 'amis-core';
 import pick from 'lodash/pick';
@@ -65,10 +66,12 @@ export interface CRUD2CommonSchema extends BaseSchema, SpinnerExtraProps {
    * 静默拉取
    */
   silentPolling?: boolean;
+
   /**
    * 设置自动刷新时间
    */
   interval?: number;
+
   stopAutoRefreshWhen?: SchemaExpression;
 
   /**
@@ -180,6 +183,9 @@ export interface CRUD2CommonSchema extends BaseSchema, SpinnerExtraProps {
    * 内容区域占满屏幕剩余空间
    */
   autoFillHeight?: boolean;
+
+  /** 行标识符，默认为id */
+  primaryField?: string;
 }
 
 export type CRUD2CardsSchema = CRUD2CommonSchema & {
@@ -246,7 +252,8 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
     'autoFillHeight',
     'showSelection',
     'headerToolbarClassName',
-    'footerToolbarClassName'
+    'footerToolbarClassName',
+    'primaryField'
   ];
   static defaultProps = {
     toolbarInline: true,
@@ -256,7 +263,8 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
     silentPolling: false,
     autoFillHeight: false,
     showSelection: true,
-    perPage: 10
+    perPage: 10,
+    primaryField: 'id'
   };
 
   control: any;
@@ -1029,7 +1037,37 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
 
   @autobind
   renderChild(region: string, schema: any, props: object = {}) {
-    const {render, store} = this.props;
+    const {render, store, primaryField = 'id'} = this.props;
+    let data;
+
+    const selectedItems = store.selectedItems;
+    const unSelectedItems = store.unSelectedItems;
+    const items = store.items;
+
+    if (/^filter/.test(region)) {
+      // 包两层，主要是为了处理以下 case
+      // 里面放了个 form，form 提交过来的时候不希望把 items 这些发送过来。
+      // 因为会把数据呈现在地址栏上。
+      /** data 可以被覆盖，因为 filter 中不需要额外的 data */
+      data = createObject(
+        createObject(store.filterData, store.getData(this.props.data)),
+        {}
+      );
+    } else {
+      data = createObject(store.mergedData, {
+        items: items.concat(),
+        selectedItems: selectedItems.concat(),
+        unSelectedItems: unSelectedItems.concat(),
+        ids: selectedItems
+          .map(item =>
+            item.hasOwnProperty(primaryField)
+              ? item[primaryField as string]
+              : null
+          )
+          .filter(item => item)
+          .join(',')
+      });
+    }
 
     // 覆盖所有分页组件
     const childProps = {
@@ -1047,14 +1085,7 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
     };
 
     return render(region, schema, {
-      // 包两层，主要是为了处理以下 case
-      // 里面放了个 form，form 提交过来的时候不希望把 items 这些发送过来。
-      // 因为会把数据呈现在地址栏上。
-      /** data 可以被覆盖，因为 filter 中不需要额外的 data */
-      data: createObject(
-        createObject(store.filterData, store.getData(this.props.data)),
-        {}
-      ),
+      data,
       ...props,
       ...childProps
     });
@@ -1074,14 +1105,28 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
     );
   }
 
-  renderFilter(filter: SchemaObject[]) {
-    if (!filter || filter.length === 0) {
+  renderFilter(filter: SchemaObject[] | SchemaObject) {
+    if (!filter) {
       return null;
     }
 
-    return filter.map((item, index) =>
-      this.renderChild(`filter/${index}`, item, {
-        key: index + 'filter',
+    if (Array.isArray(filter)) {
+      return filter.map((item, index) =>
+        this.renderChild(`filter/${index}`, item, {
+          key: index + 'filter',
+          data: this.props.store.filterData,
+          onSubmit: (data: any) => this.handleSearch({query: data}),
+          onReset: () =>
+            this.handleSearch({
+              resetQuery: true,
+              replaceQuery: true
+            })
+        })
+      );
+    }
+
+    if (isObject(filter)) {
+      return this.renderChild('filter', filter, {
         data: this.props.store.filterData,
         onSubmit: (data: any) => this.handleSearch({query: data}),
         onReset: () =>
@@ -1089,8 +1134,10 @@ export default class CRUD2 extends React.Component<CRUD2Props, any> {
             resetQuery: true,
             replaceQuery: true
           })
-      })
-    );
+      });
+    }
+
+    return null;
   }
 
   renderSelection(): React.ReactNode {
