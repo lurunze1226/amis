@@ -106,7 +106,7 @@ export interface PopOverFormContext extends PopOverForm {
   target: () => HTMLElement;
   value: any;
   callback: (value: any, diff: any) => void;
-  node: EditorNodeType;
+  node?: EditorNodeType;
 }
 
 /**
@@ -1599,13 +1599,16 @@ export const MainStore = types
         self.subEditorContext = {
           ...context,
           hostNode: self.getNodeById(activeId),
-          data: extendObject(context.data, {
-            __curCmptTreeWrap: {
-              label: context.title,
-              disabled: true
-            },
-            __superCmptTreeSource: self.getComponentTreeSource()
-          })
+          data: createObject(
+            self.ctx,
+            extendObject(context.data, {
+              __curCmptTreeWrap: {
+                label: context.title,
+                disabled: true
+              },
+              __superCmptTreeSource: self.getComponentTreeSource()
+            })
+          )
         };
       },
 

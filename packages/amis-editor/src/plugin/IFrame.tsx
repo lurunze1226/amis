@@ -9,6 +9,7 @@ import {
 import {defaultValue, getSchemaTpl, valuePipeOut} from 'amis-editor-core';
 
 export class IFramePlugin extends BasePlugin {
+  static id = 'IFramePlugin';
   // 关联渲染器名字
   rendererName = 'iframe';
   $schema = '/schemas/IFrameSchema.json';
@@ -84,7 +85,11 @@ export class IFramePlugin extends BasePlugin {
   };
 
   renderRenderer(props: any) {
-    return this.renderPlaceholder(`IFrame 页面（${props.src}）`, props.key, props.style);
+    return this.renderPlaceholder(
+      `IFrame 页面（${props.src}）`,
+      props.key,
+      props.style
+    );
   }
 }
 

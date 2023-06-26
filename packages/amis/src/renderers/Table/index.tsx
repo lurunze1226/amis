@@ -63,6 +63,7 @@ import {getStyleNumber} from 'amis-core';
 import {exportExcel} from './exportExcel';
 import type {IColumn, IRow} from 'amis-core';
 import intersection from 'lodash/intersection';
+import {isMobile} from 'amis-core';
 
 /**
  * 表格列，不指定类型时默认为文本类型。
@@ -415,6 +416,7 @@ export type TableRendererEvent =
   | 'columnToggled'
   | 'orderChange'
   | 'rowClick'
+  | 'rowDbClick'
   | 'rowMouseEnter'
   | 'rowMouseLeave';
 
@@ -665,7 +667,7 @@ export default class Table extends React.Component<TableProps, object> {
       return;
     }
 
-    this.affixDetect();
+    requestAnimationFrame(this.affixDetect);
     parent.addEventListener('scroll', this.affixDetect);
     window.addEventListener('resize', this.affixDetect);
     this.updateAutoFillHeight();
@@ -1160,6 +1162,13 @@ export default class Table extends React.Component<TableProps, object> {
     const ns = this.props.classPrefix;
     const dom = findDOMNode(this) as HTMLElement;
     const clip = (this.table as HTMLElement).getBoundingClientRect();
+
+    // 还在动画中，跳过。过一会再试。
+    if (this.table.offsetWidth && clip.width / this.table.offsetWidth < 0.5) {
+      setTimeout(this.affixDetect, 200);
+      return;
+    }
+
     const offsetY =
       this.props.affixOffsetTop ?? this.props.env.affixOffsetTop ?? 0;
     const headingHeight =
@@ -1174,9 +1183,15 @@ export default class Table extends React.Component<TableProps, object> {
       clip.top - headerHeight - headingHeight < offsetY &&
       clip.top + clip.height - 40 > offsetY;
 
-    affixedDom.style.cssText += `top: ${offsetY}px;width: ${
-      (this.table.parentNode as HTMLElement).offsetWidth
-    }px`;
+    if (isMobile()) {
+      affixedDom.style.cssText += `top: 0;width: ${
+        (this.table.parentNode as HTMLElement).offsetWidth
+      }px`;
+    } else {
+      affixedDom.style.cssText += `top: ${offsetY}px;width: ${
+        (this.table.parentNode as HTMLElement).offsetWidth
+      }px`;
+    }
 
     affixed
       ? affixedDom.classList.add('in')
@@ -2393,7 +2408,8 @@ export default class Table extends React.Component<TableProps, object> {
     rows: Array<any>,
     columns: Array<IColumn>,
     headerOnly: boolean = false,
-    tableClassName: string = ''
+    tableClassName: string = '',
+    fixedPosition: 'left' | 'right' = 'left'
   ) {
     const {
       placeholder,
@@ -2409,7 +2425,11 @@ export default class Table extends React.Component<TableProps, object> {
       rowClassName,
       itemAction,
       dispatchEvent,
-      onEvent
+      onEvent,
+      prefixRow,
+      affixRow,
+      prefixRowClassName,
+      affixRowClassName
     } = this.props;
     const hideHeader = store.filteredColumns.every(column => !column.label);
     const columnsGroup = store.columnGroup;
@@ -2502,6 +2522,11 @@ export default class Table extends React.Component<TableProps, object> {
             rows={rows}
             locale={locale}
             translate={translate}
+            fixedPosition={fixedPosition}
+            prefixRow={prefixRow}
+            affixRow={affixRow}
+            prefixRowClassName={prefixRowClassName}
+            affixRowClassName={affixRowClassName}
             rowsProps={{
               regionPrefix: 'fixed/',
               renderCell: (
@@ -3050,7 +3075,8 @@ export default class Table extends React.Component<TableProps, object> {
       classnames: cx,
       affixColumns,
       autoFillHeight,
-      autoGenerateFilter
+      autoGenerateFilter,
+      useMobileUI
     } = this.props;
 
     this.renderedToolbars = []; // 用来记录哪些 toolbar 已经渲染了，已经渲染了就不重复渲染了。
@@ -3060,10 +3086,11 @@ export default class Table extends React.Component<TableProps, object> {
     const tableClassName = cx('Table-table', this.props.tableClassName, {
       'Table-table--withCombine': store.combineNum > 0
     });
+    const mobileUI = useMobileUI && isMobile();
 
     return (
       <div
-        className={cx('Table', className, {
+        className={cx('Table', {'is-mobile': mobileUI}, className, {
           'Table--unsaved': !!store.modified || !!store.moved,
           'Table--autoFillHeight': autoFillHeight
         })}
@@ -3104,7 +3131,8 @@ export default class Table extends React.Component<TableProps, object> {
                   store.rows,
                   store.rightFixedColumns,
                   false,
-                  tableClassName
+                  tableClassName,
+                  'right'
                 )
               : null}
           </div>

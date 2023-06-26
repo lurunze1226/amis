@@ -54,6 +54,7 @@ export interface SchemaEditorItemCommonProps extends LocaleProps, ThemeProps {
   /** 各属性输入控件的placeholder */
   placeholder?: SchemaEditorItemPlaceholder;
   popOverContainer?: any;
+  useMobileUI?: boolean;
 }
 
 export class SchemaEditorItemCommon<
@@ -102,7 +103,8 @@ export class SchemaEditorItemCommon<
       prefix,
       affix,
       types,
-      placeholder
+      placeholder,
+      useMobileUI
     } = this.props;
 
     return (
@@ -118,6 +120,8 @@ export class SchemaEditorItemCommon<
             clearable={false}
             disabled={disabled || typeMutable === false}
             simpleValue
+            useMobileUI={useMobileUI}
+            popOverContainer={popOverContainer}
           />
         ) : null}
 
@@ -135,6 +139,7 @@ export class SchemaEditorItemCommon<
 
         {enableAdvancedSetting ? (
           <PickerContainer
+            useMobileUI={useMobileUI}
             value={value}
             bodyRender={({isOpened, value, onChange, ref}) => {
               return isOpened ? (
@@ -152,6 +157,7 @@ export class SchemaEditorItemCommon<
                             {...field}
                             disabled={disabled}
                             placeholder={__(placeholder?.title ?? '')}
+                            useMobileUI={useMobileUI}
                           />
                         )}
                       />
@@ -164,6 +170,7 @@ export class SchemaEditorItemCommon<
                           <Textarea
                             {...field}
                             disabled={disabled}
+                            useMobileUI={useMobileUI}
                             placeholder={__(placeholder?.description ?? '')}
                           />
                         )}
@@ -178,6 +185,7 @@ export class SchemaEditorItemCommon<
                             {...field}
                             disabled={disabled}
                             placeholder={__(placeholder?.default ?? '')}
+                            useMobileUI={useMobileUI}
                           />
                         )}
                       />

@@ -7,6 +7,7 @@ import {
 import type {BaseEventContext} from 'amis-editor-core';
 
 export class LinkPlugin extends BasePlugin {
+  static id = 'LinkPlugin';
   static scene = ['layout'];
   // 关联渲染器名字
   rendererName = 'link';

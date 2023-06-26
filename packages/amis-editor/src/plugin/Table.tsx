@@ -23,7 +23,7 @@ import {
 import {defaultValue, getSchemaTpl, tipedLabel} from 'amis-editor-core';
 import {mockValue} from 'amis-editor-core';
 import {EditorNodeType} from 'amis-editor-core';
-import type {SchemaObject} from 'amis';
+import type {DataScope, SchemaObject} from 'amis';
 import {
   getEventControlConfig,
   getArgsWrapper
@@ -37,6 +37,7 @@ import {
 import type {EditorManager} from 'amis-editor-core';
 
 export class TablePlugin extends BasePlugin {
+  static id = 'TablePlugin';
   // 关联渲染器名字
   rendererName = 'table';
   $schema = '/schemas/TableSchema.json';
@@ -182,13 +183,19 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.selectedItems': {
-              type: 'array',
-              title: '已选择行'
-            },
-            'event.data.unSelectedItems': {
-              type: 'array',
-              title: '未选择行'
+            data: {
+              type: 'object',
+              title: '数据',
+              properties: {
+                selectedItems: {
+                  type: 'array',
+                  title: '已选行记录'
+                },
+                unSelectedItems: {
+                  type: 'array',
+                  title: '未选行记录'
+                }
+              }
             }
           }
         }
@@ -202,13 +209,19 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.orderBy': {
-              type: 'string',
-              title: '列排序列名'
-            },
-            'event.data.orderDir': {
-              type: 'string',
-              title: '列排序值'
+            data: {
+              type: 'object',
+              title: '数据',
+              properties: {
+                orderBy: {
+                  type: 'string',
+                  title: '列名'
+                },
+                orderDir: {
+                  type: 'string',
+                  title: '排序值'
+                }
+              }
             }
           }
         }
@@ -222,13 +235,19 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.filterName': {
-              type: 'string',
-              title: '列筛选列名'
-            },
-            'event.data.filterValue': {
-              type: 'string',
-              title: '列筛选值'
+            data: {
+              type: 'object',
+              title: '数据',
+              properties: {
+                filterName: {
+                  type: 'string',
+                  title: '列名'
+                },
+                filterValue: {
+                  type: 'string',
+                  title: '筛选值'
+                }
+              }
             }
           }
         }
@@ -242,13 +261,19 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.searchName': {
-              type: 'string',
-              title: '列搜索列名'
-            },
-            'event.data.searchValue': {
+            data: {
               type: 'object',
-              title: '列搜索数据'
+              title: '数据',
+              properties: {
+                searchName: {
+                  type: 'string',
+                  title: '列名'
+                },
+                searchValue: {
+                  type: 'object',
+                  title: '搜索值'
+                }
+              }
             }
           }
         }
@@ -262,9 +287,15 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.movedItems': {
-              type: 'array',
-              title: '已排序数据'
+            data: {
+              type: 'object',
+              title: '数据',
+              properties: {
+                movedItems: {
+                  type: 'array',
+                  title: '已排序记录'
+                }
+              }
             }
           }
         }
@@ -278,9 +309,15 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.columns': {
-              type: 'array',
-              title: '当前显示的列配置数据'
+            data: {
+              type: 'object',
+              title: '数据',
+              properties: {
+                columns: {
+                  type: 'array',
+                  title: '当前显示的列配置'
+                }
+              }
             }
           }
         }
@@ -294,13 +331,19 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.item': {
+            data: {
               type: 'object',
-              title: '当前行数据'
-            },
-            'event.data.index': {
-              type: 'number',
-              title: '当前行索引'
+              title: '数据',
+              properties: {
+                item: {
+                  type: 'object',
+                  title: '当前行记录'
+                },
+                index: {
+                  type: 'number',
+                  title: '当前行索引'
+                }
+              }
             }
           }
         }
@@ -314,13 +357,19 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.item': {
+            data: {
               type: 'object',
-              title: '当前行数据'
-            },
-            'event.data.index': {
-              type: 'number',
-              title: '当前行索引'
+              title: '数据',
+              properties: {
+                item: {
+                  type: 'object',
+                  title: '当前行记录'
+                },
+                index: {
+                  type: 'number',
+                  title: '当前行索引'
+                }
+              }
             }
           }
         }
@@ -334,13 +383,19 @@ export class TablePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.item': {
+            data: {
               type: 'object',
-              title: '当前行数据'
-            },
-            'event.data.index': {
-              type: 'number',
-              title: '当前行索引'
+              title: '数据',
+              properties: {
+                item: {
+                  type: 'object',
+                  title: '当前行记录'
+                },
+                index: {
+                  type: 'number',
+                  title: '当前行索引'
+                }
+              }
             }
           }
         }
@@ -355,18 +410,6 @@ export class TablePlugin extends BasePlugin {
       description: '设置表格的选中项',
       innerArgs: ['selected'],
       schema: getArgsWrapper([
-        /*
-        {
-          type: 'input-formula',
-          variables: '${variables}',
-          evalMode: false,
-          variableMode: 'tabs',
-          label: '选中项',
-          size: 'lg',
-          name: 'selected',
-          mode: 'horizontal'
-        }
-        */
         getSchemaTpl('formulaControl', {
           name: 'selected',
           label: '选中项',
@@ -731,7 +774,7 @@ export class TablePlugin extends BasePlugin {
     region?: EditorNodeType,
     trigger?: EditorNodeType
   ) {
-    const itemsSchema: any = {
+    let itemsSchema: any = {
       $id: 'tableRow',
       type: 'object',
       properties: {}
@@ -755,7 +798,7 @@ export class TablePlugin extends BasePlugin {
     // }
 
     // 一期先简单处理，上面todo实现之后，这里可以废弃
-    // table 无法根据source确定异步数据来源，因此不能在table层做异步数据列的收集
+    // 收集table配置的列成员
     for (let current of node.schema?.columns) {
       if (current.name) {
         itemsSchema.properties[current.name] = {
@@ -765,18 +808,56 @@ export class TablePlugin extends BasePlugin {
       }
     }
 
+    // 收集source绑定的列表成员
+    if (node.schema.source) {
+      const sourceMatch1 = node.schema.source.match(/\$\{(.*?)\}/);
+      const sourceMatch2 = node.schema.source.match(/\$(\w+$)/);
+      const source = sourceMatch1
+        ? sourceMatch1[1]
+        : sourceMatch2
+        ? sourceMatch2[1]
+        : '';
+      let scope: any = this.manager.dataSchema.getScope(
+        `${node.info.id}-${node.info.type}`
+      );
+
+      while (scope) {
+        const rowMembers: any = scope.schemas.find(
+          (item: any) => item.properties?.[source]
+        );
+
+        if (rowMembers) {
+          itemsSchema = {
+            ...itemsSchema,
+            properties: {
+              ...itemsSchema.properties,
+              ...(rowMembers.properties?.[source] as any)?.items?.properties
+            }
+          };
+        }
+        scope = rowMembers ? undefined : scope.parent;
+      }
+    }
+
     if (region?.region === 'columns') {
       return itemsSchema;
     }
 
-    let cellProperties = {};
+    let cellProperties: any = {};
     if (trigger) {
       const isColumnChild = someTree(
         columns?.children,
         item => item.id === trigger.id
       );
 
-      isColumnChild && (cellProperties = itemsSchema.properties);
+      if (isColumnChild) {
+        Object.keys(itemsSchema.properties).map(key => {
+          cellProperties[key] = {
+            ...itemsSchema.properties[key],
+            group: '当前行记录'
+          };
+        });
+      }
     }
 
     return {
@@ -791,13 +872,13 @@ export class TablePlugin extends BasePlugin {
         },
         selectedItems: {
           type: 'array',
-          title: '已选中行'
-          // items: itemsSchema
+          title: '已选中行',
+          items: itemsSchema
         },
         unSelectedItems: {
           type: 'array',
-          title: '未选中行'
-          // items: itemsSchema
+          title: '未选中行',
+          items: itemsSchema
         }
       }
     };

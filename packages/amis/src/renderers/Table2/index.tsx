@@ -389,6 +389,7 @@ export type Table2RendererEvent =
   | 'columnToggled'
   | 'orderChange'
   | 'rowClick'
+  | 'rowDbClick'
   | 'rowMouseEnter'
   | 'rowMouseLeave';
 
@@ -1152,13 +1153,12 @@ export default class Table2 extends React.Component<Table2Props, object> {
   @autobind
   async handleSort(payload: SortProps) {
     const {dispatchEvent, data, onSort} = this.props;
-    const normalizedPayload = {
-      orderBy: payload.orderBy,
-      orderDir: payload.order
-    };
     const rendererEvent = await dispatchEvent(
       'columnSort',
-      createObject(data, normalizedPayload)
+      createObject(data, {
+        orderBy: payload.orderBy,
+        orderDir: payload.orderDir
+      })
     );
 
     if (rendererEvent?.prevented) {

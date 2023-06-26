@@ -2,7 +2,7 @@ import React from 'react';
 import isEqual from 'lodash/isEqual';
 import pickBy from 'lodash/pickBy';
 import omitBy from 'lodash/omitBy';
-import {Renderer, RendererProps, filterTarget} from 'amis-core';
+import {Renderer, RendererProps, filterTarget, generateIcon} from 'amis-core';
 import {SchemaNode, Schema, ActionObject, PlainObject} from 'amis-core';
 import {CRUDStore, ICRUDStore} from 'amis-core';
 import {
@@ -47,10 +47,16 @@ import {ListSchema} from './List';
 import {TableSchema} from './Table';
 import type {TableRendererEvent} from './Table';
 import type {CardsRendererEvent} from './Cards';
-import {isPureVariable, resolveVariableAndFilter, parseQuery} from 'amis-core';
+import {
+  isPureVariable,
+  resolveVariableAndFilter,
+  parseQuery,
+  isMobile
+} from 'amis-core';
 
 import type {PaginationProps} from './Pagination';
 import {isAlive} from 'mobx-state-tree';
+import isPlainObject from 'lodash/isPlainObject';
 
 export type CRUDBultinToolbarType =
   | 'columns-toggler'
@@ -258,7 +264,14 @@ export interface CRUDCommonSchema extends BaseSchema, SpinnerExtraProps {
   stopAutoRefreshWhen?: SchemaExpression;
 
   stopAutoRefreshWhenModalIsOpen?: boolean;
-  filterTogglable?: boolean;
+  filterTogglable?:
+    | boolean
+    | {
+        label?: string; // 按钮文字
+        activeLabel?: string;
+        icon?: string; // 按钮图标
+        activeIcon?: string;
+      };
   filterDefaultVisible?: boolean;
 
   /**
@@ -361,6 +374,7 @@ const INNER_EVENTS: Array<CRUDRendererEvent> = [
   'columnToggled',
   'orderChange',
   'rowClick',
+  'rowDbClick',
   'rowMouseEnter',
   'rowMouseLeave',
   'selected'
@@ -576,7 +590,7 @@ export default class CRUD extends React.Component<CRUDProps, any> {
       store.setSelectedItems(val);
     }
 
-    if (this.props.filterTogglable !== prevProps.filterTogglable) {
+    if (!!this.props.filterTogglable !== !!prevProps.filterTogglable) {
       store.setFilterTogglable(
         !!props.filterTogglable,
         props.filterDefaultVisible
@@ -1925,12 +1939,14 @@ export default class CRUD extends React.Component<CRUDProps, any> {
 
   renderSwitchPerPage(childProps: any) {
     const {
+      useMobileUI,
       store,
       perPageAvailable,
       classnames: cx,
       classPrefix: ns,
       translate: __
     } = this.props;
+    const mobileUI = useMobileUI && isMobile();
 
     const items = childProps.items;
 
@@ -1938,16 +1954,19 @@ export default class CRUD extends React.Component<CRUDProps, any> {
       return null;
     }
 
-    const perPages = (perPageAvailable || [5, 10, 20, 50, 100]).map(
-      (item: any) => ({
-        label: item,
-        value: item + ''
-      })
-    );
+    const perPages = mobileUI
+      ? (perPageAvailable || [5, 10, 20, 50, 100]).map((item: any) => ({
+          label: item + ' 条/页',
+          value: item + ''
+        }))
+      : (perPageAvailable || [5, 10, 20, 50, 100]).map((item: any) => ({
+          label: item,
+          value: item + ''
+        }));
 
     return (
       <div className={cx('Crud-pageSwitch')}>
-        <span>{__('CRUD.perPage')}</span>
+        {!mobileUI ? <span>{__('CRUD.perPage')}</span> : null}
         <Select
           classPrefix={ns}
           searchable={false}
@@ -1984,10 +2003,25 @@ export default class CRUD extends React.Component<CRUDProps, any> {
   }
 
   renderFilterToggler() {
-    const {store, classnames: cx, translate: __} = this.props;
+    const {store, classnames: cx, translate: __, filterTogglable} = this.props;
 
     if (!store.filterTogggable) {
       return null;
+    }
+
+    let custom: {
+      icon?: string | boolean;
+      label?: string | boolean;
+      activeIcon?: string | boolean;
+      activeLabel?: string | boolean;
+    } = isPlainObject(filterTogglable)
+      ? {
+          ...(filterTogglable as any)
+        }
+      : {};
+    if (store.filterVisible) {
+      custom.icon = custom.activeIcon ?? custom.icon;
+      custom.label = custom.activeLabel ?? custom.label;
     }
 
     return (
@@ -1997,8 +2031,12 @@ export default class CRUD extends React.Component<CRUDProps, any> {
           'is-active': store.filterVisible
         })}
       >
-        <Icon icon="filter" className="icon m-r-xs" />
-        {__('CRUD.filter')}
+        {custom.icon ? (
+          generateIcon(cx, custom.icon)
+        ) : custom?.icon !== false ? (
+          <Icon icon="filter" className="icon m-r-xs" />
+        ) : null}
+        {custom?.label ?? __('CRUD.filter')}
       </button>
     );
   }
@@ -2006,6 +2044,7 @@ export default class CRUD extends React.Component<CRUDProps, any> {
   renderExportCSV(toolbar: Schema) {
     const {store, classPrefix: ns, translate: __, loadDataOnce} = this.props;
     const api = (toolbar as Schema).api;
+    const filename = toolbar.filename;
 
     return (
       <Button
@@ -2014,6 +2053,7 @@ export default class CRUD extends React.Component<CRUDProps, any> {
           store.exportAsCSV({
             loadDataOnce,
             api,
+            filename,
             data: store.filterData /* 因为filter区域可能设置了过滤字段值，所以query信息也要写入数据域 */
           })
         }
@@ -2033,8 +2073,9 @@ export default class CRUD extends React.Component<CRUDProps, any> {
       return null;
     }
 
-    const {render, store, translate: __} = this.props;
+    const {render, store, useMobileUI, translate: __} = this.props;
     const type = (toolbar as Schema).type || toolbar;
+    const mobileUI = useMobileUI && isMobile();
 
     if (type === 'bulkActions' || type === 'bulk-actions') {
       return this.renderBulkActions(childProps);
@@ -2088,7 +2129,10 @@ export default class CRUD extends React.Component<CRUDProps, any> {
                   key={index}
                   className={cx(
                     'Crud-toolbar-item',
-                    align ? `Crud-toolbar-item--${align}` : ''
+                    align ? `Crud-toolbar-item--${align}` : '',
+                    {
+                      'is-mobile': mobileUI
+                    }
                     // toolbar.className
                   )}
                 >
@@ -2277,7 +2321,8 @@ export default class CRUD extends React.Component<CRUDProps, any> {
     return (
       <div
         className={cx('Crud', className, {
-          'is-loading': store.loading
+          'is-loading': store.loading,
+          'is-mobile': isMobile()
         })}
         style={style}
       >

@@ -22,7 +22,6 @@ import {getEventControlConfig} from '../renderer/event-control/helper';
 
 export class ServicePlugin extends BasePlugin {
   static id = 'ServicePlugin';
-
   // 关联渲染器名字
   rendererName = 'service';
   $schema = '/schemas/ServiceSchema.json';
@@ -66,6 +65,23 @@ export class ServicePlugin extends BasePlugin {
 
   events: RendererPluginEvent[] = [
     {
+      eventName: 'init',
+      eventLabel: '初始化',
+      description: '组件实例被创建并插入 DOM 中时触发',
+      dataSchema: [
+        {
+          type: 'object',
+          properties: {
+            data: {
+              type: 'object',
+              title: '数据',
+              description: '当前数据域，可以通过.字段名读取对应的值'
+            }
+          }
+        }
+      ]
+    },
+    {
       eventName: 'fetchInited',
       eventLabel: '初始化数据接口请求完成',
       description: '远程初始化数据接口请求完成时触发',
@@ -73,17 +89,23 @@ export class ServicePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.responseData': {
+            data: {
               type: 'object',
-              title: '响应数据'
-            },
-            'event.data.responseStatus': {
-              type: 'object',
-              title: '响应状态'
-            },
-            'event.data.responseMsg': {
-              type: 'object',
-              title: '响应消息'
+              title: '数据',
+              properties: {
+                responseData: {
+                  type: 'object',
+                  title: '响应数据'
+                },
+                responseStatus: {
+                  type: 'number',
+                  title: '响应状态(0表示成功)'
+                },
+                responseMsg: {
+                  type: 'string',
+                  title: '响应消息'
+                }
+              }
             }
           }
         }
@@ -97,17 +119,23 @@ export class ServicePlugin extends BasePlugin {
         {
           type: 'object',
           properties: {
-            'event.data.responseData': {
+            data: {
               type: 'object',
-              title: '响应数据'
-            },
-            'event.data.responseStatus': {
-              type: 'number',
-              title: '响应状态(0表示成功)'
-            },
-            'event.data.responseMsg': {
-              type: 'string',
-              title: '响应消息'
+              title: '数据',
+              properties: {
+                responseData: {
+                  type: 'object',
+                  title: '响应数据'
+                },
+                responseStatus: {
+                  type: 'number',
+                  title: '响应状态(0表示成功)'
+                },
+                responseMsg: {
+                  type: 'string',
+                  title: '响应消息'
+                }
+              }
             }
           }
         }

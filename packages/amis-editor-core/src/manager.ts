@@ -33,14 +33,14 @@ import {
   DeleteEventContext,
   RendererPluginEvent,
   PluginEvents,
-  PluginActions
+  PluginActions,
+  BasePlugin
 } from './plugin';
 import {
   EditorStoreType,
   PopOverFormContext,
   SubEditorContext
 } from './store/editor';
-
 import {
   autobind,
   camelize,
@@ -64,7 +64,6 @@ import {EditorNodeType} from './store/node';
 import {EditorProps} from './component/Editor';
 import {EditorDNDManager} from './dnd';
 import {VariableManager} from './variable';
-import {BasePlugin} from './plugin';
 import {IScopedContext} from 'amis';
 
 import type {SchemaObject, SchemaCollection} from 'amis';
@@ -76,7 +75,7 @@ export interface EditorManagerConfig
 export interface PluginClass {
   new (manager: EditorManager, options?: any, ctx?: any): PluginInterface;
   id?: string;
-  /** 优先级，值为整数，plugin同ID时数字更大的plugin优先级更高，只有设置的时候才会比较 */
+  /** 优先级，值为整数，当存在两个ID相同的Plugin时，数字更大的优先级更高 */
   priority?: number;
   scene?: Array<string>;
 }
@@ -110,8 +109,8 @@ export function registerEditorPlugin(klass: PluginClass) {
   // 处理插件身上的场景信息
   const scene = Array.from(new Set(['global'].concat(klass.scene || 'global')));
   klass.scene = scene;
-  let exsitedPluginIdx: any = null;
 
+  let exsitedPluginIdx: any = null;
   if (klass.prototype && klass.prototype.isNpmCustomWidget) {
     exsitedPluginIdx = builtInPlugins.findIndex(item =>
       Array.isArray(item)
@@ -128,15 +127,14 @@ export function registerEditorPlugin(klass: PluginClass) {
     klass.id = klass.id || klass.name || guid();
   }
 
-  /** 因为class的继承关系，未设置ID的子class会和父class共用ID, 这种情况就不判断了 */
+  /** 因为class的继承关系，未设置ID的子class会和父class共用ID, 只有设置了priority的时候才会执行同ID去重 */
   if (klass.priority == null || !Number.isInteger(klass.priority)) {
     if (!~exsitedPluginIdx) {
       builtInPlugins.push(klass);
     } else {
-      console.warn(`注册插件异常，已存在同名插件：`, klass);
+      console.warn(`注册插件「${klass.id}」异常，已存在同名插件：`, klass);
     }
   } else {
-    /** 只有设置了priority的时候才会执行同ID去重 */
     exsitedPluginIdx = ~exsitedPluginIdx
       ? exsitedPluginIdx
       : builtInPlugins.findIndex(
@@ -235,38 +233,38 @@ export class EditorManager {
     this.hackIn = parent?.hackIn || hackIn;
     // 自动加载预先注册的自定义组件
     autoPreRegisterEditorCustomPlugins();
-    const scene = config.scene || 'global';
-    const externalPlugins = config?.plugins || [];
-    /** 根据外部注册的Plugin执行去重 */
-    externalPlugins.forEach(external => {
-      if (
-        Array.isArray(external) ||
-        !external.priority ||
-        !Number.isInteger(external.priority)
-      ) {
-        return;
-      }
-
-      const idx = builtInPlugins.findIndex(
-        builtIn =>
-          !Array.isArray(builtIn) &&
-          !Array.isArray(external) &&
-          builtIn.id === external.id &&
-          builtIn?.prototype instanceof BasePlugin
-      );
-
-      if (~idx) {
-        const current = builtInPlugins[idx] as PluginClass;
-        const currentPriority =
-          current.priority && Number.isInteger(current.priority)
-            ? current.priority
-            : 0;
-        /** 同ID的插件根据优先级决定是否update */
-        if (external.priority > currentPriority) {
-          builtInPlugins.splice(idx, 1);
+    /** 在顶层对外部注册的Plugin和builtInPlugins合并去重 */
+    if (!parent?.plugins) {
+      (config?.plugins || []).forEach(external => {
+        if (
+          Array.isArray(external) ||
+          !external.priority ||
+          !Number.isInteger(external.priority)
+        ) {
+          return;
         }
-      }
-    });
+
+        const idx = builtInPlugins.findIndex(
+          builtIn =>
+            !Array.isArray(builtIn) &&
+            !Array.isArray(external) &&
+            builtIn.id === external.id &&
+            builtIn?.prototype instanceof BasePlugin
+        );
+
+        if (~idx) {
+          const current = builtInPlugins[idx] as PluginClass;
+          const currentPriority =
+            current.priority && Number.isInteger(current.priority)
+              ? current.priority
+              : 0;
+          /** 同ID Plugin根据优先级决定是否替换掉Builtin中的Plugin */
+          if (external.priority > currentPriority) {
+            builtInPlugins.splice(idx, 1);
+          }
+        }
+      });
+    }
 
     this.plugins =
       parent?.plugins ||
@@ -304,7 +302,6 @@ export class EditorManager {
     this.dnd = parent?.dnd || new EditorDNDManager(this, store);
     this.dataSchema =
       parent?.dataSchema || new DataSchema(config.schemas || []);
-    this.dataSchema.current.tag = '系统变量';
 
     /** 初始化变量管理 */
     this.variableManager = new VariableManager(
@@ -1734,6 +1731,7 @@ export class EditorManager {
 
   async scaffold(form: any, value: any): Promise<SchemaObject> {
     const scaffoldFormData = form.pipeIn ? await form.pipeIn(value) : value;
+
     return new Promise(resolve => {
       this.store.openScaffoldForm({
         ...form,
@@ -2040,7 +2038,7 @@ export class EditorManager {
         ? this.dataSchema.getScope(`${from.id}-${from.type}`)
         : undefined;
 
-      /** Combo和InputTable作为绑定对多字段容器且子字段可继续绑定 */
+      /** Combo和InputTable作为也有自己的Scope */
       if (!scope) {
         if (['combo', 'input-table'].includes(from?.info?.type)) {
           break;
