@@ -1,5 +1,4 @@
 import {saveAs} from 'file-saver';
-import {filter} from 'amis-core';
 import {types, flow, getEnv, isAlive, Instance} from 'mobx-state-tree';
 import {IRendererStore} from './index';
 import {ServiceStore} from './service';
@@ -14,6 +13,7 @@ import {
 } from '../utils/helper';
 import {Api, Payload, fetchOptions, ActionObject, ApiObject} from '../types';
 import pick from 'lodash/pick';
+import {filter} from '../utils/tpl';
 import {resolveVariableAndFilter} from '../utils/tpl-builtin';
 import {normalizeApiResponseData} from '../utils/api';
 import {matchSorter} from 'match-sorter';

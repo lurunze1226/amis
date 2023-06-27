@@ -1165,7 +1165,7 @@ export default class Table2 extends React.Component<Table2Props, object> {
       return rendererEvent?.prevented;
     }
 
-    onSort && onSort(normalizedPayload);
+    onSort && onSort(payload);
   }
 
   @autobind
