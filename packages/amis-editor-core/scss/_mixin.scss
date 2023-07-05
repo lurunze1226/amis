@@ -90,6 +90,7 @@
 @mixin panel-sm-content {
   @extend :root;
   --fonts-size-7: #{$Editor-right-panel-font-size};
+  --radio-default-default-lineHeight: 1.8;
   --Form-input-lineHeight: #{$Editor-right-panel-line-height};
   --InputGroup-select-borderColor: #{$Editor-right-panel-border-color};
   --Form-input-borderColor: #{$Editor-right-panel-border-color};

@@ -35,7 +35,6 @@ const pages: TreeArray = [
         path: '/form/input-table',
         component: React.lazy(() => import('./form/InputTable'))
       },
-
       {
         label: 'Combo',
         path: '/form/combo',

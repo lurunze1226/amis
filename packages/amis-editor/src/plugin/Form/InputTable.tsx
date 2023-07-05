@@ -2,8 +2,6 @@ import {
   registerEditorPlugin,
   BaseEventContext,
   BasePlugin,
-  InsertEventContext,
-  PluginEvent,
   ScaffoldForm,
   RegionConfig,
   RendererPluginEvent,
@@ -15,9 +13,9 @@ import {
   repeatArray,
   mockValue,
   EditorNodeType,
-  EditorManager,
-  DSBuilderManager
+  EditorManager
 } from 'amis-editor-core';
+import {DSBuilderManager} from '../../builder/DSBuilderManager';
 import {setVariable, someTree} from 'amis-core';
 import {ValidatorTag} from '../../validator';
 import {
@@ -814,11 +812,11 @@ export class TableControlPlugin extends BasePlugin {
     }
   ];
 
-  dsBuilderManager: DSBuilderManager;
+  dsManager: DSBuilderManager;
 
   constructor(manager: EditorManager) {
     super(manager);
-    this.dsBuilderManager = new DSBuilderManager('input-table', 'api');
+    this.dsManager = new DSBuilderManager(manager);
   }
 
   panelBodyCreator = (context: BaseEventContext) => {
@@ -1147,14 +1145,11 @@ export class TableControlPlugin extends BasePlugin {
       (target.parent.isRegion && target.parent.region === 'columns')
     ) {
       scope = scopeNode.parent.parent;
-      builder = this.dsBuilderManager.resolveBuilderBySchema(
-        scope.schema,
-        'api'
-      );
+      builder = this.dsManager.getBuilderBySchema(scope.schema);
     }
 
     if (builder && scope.schema.api) {
-      return builder.getAvailableContextFileds(
+      return builder.getAvailableContextFields(
         {
           schema: scope.schema,
           sourceKey: 'api',

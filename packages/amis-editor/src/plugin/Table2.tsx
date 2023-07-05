@@ -17,9 +17,9 @@ import {
   mockValue,
   EditorNodeType,
   RendererPluginAction,
-  RendererPluginEvent,
-  DSBuilderManager
+  RendererPluginEvent
 } from 'amis-editor-core';
+import {DSBuilderManager} from '../builder/DSBuilderManager';
 import {
   getEventControlConfig,
   getArgsWrapper
@@ -336,74 +336,98 @@ export class Table2Plugin extends BasePlugin {
 
   actions: RendererPluginAction[] = Table2RendererAction;
 
-  dsBuilderMgr: DSBuilderManager;
+  dsManager: DSBuilderManager;
 
   constructor(manager: EditorManager) {
     super(manager);
 
-    this.dsBuilderMgr = new DSBuilderManager('table', 'api');
+    this.dsManager = new DSBuilderManager(manager);
   }
 
-  async buildDataSchemas(
-    node: EditorNodeType,
-    region?: EditorNodeType,
-    trigger?: EditorNodeType
-  ) {
-    const itemsSchema: any = {
-      $id: 'tableRow',
-      type: 'object',
-      properties: {}
-    };
-    const columns: EditorNodeType = node.children.find(
-      item => item.isRegion && item.region === 'columns'
-    );
+  getRendererInfo(
+    context: RendererInfoResolveEventContext
+  ): BasicRendererInfo | void {
+    const plugin: PluginInterface = this;
+    const {schema, renderer} = context;
 
-    if (columns) {
-      for (let current of columns.children) {
-        const schema = current.schema;
-        if (schema?.name) {
-          itemsSchema.properties[schema.name] = current.info?.plugin
-            ?.buildDataSchemas
-            ? await current.info.plugin.buildDataSchemas(current, region)
-            : {
-                type: 'string',
-                title: schema.label || schema.title
-              };
-        }
-      }
-    }
-
-    let cellProperties = {};
-    if (trigger) {
-      const isColumnChild = someTree(
-        columns?.children,
-        item => item.id === trigger.id
-      );
-
-      isColumnChild && (cellProperties = itemsSchema.properties);
-    }
-
-    const result: any = {
-      $id: 'table2',
-      type: 'object',
-      properties: {
-        ...cellProperties,
-        rows: {
-          type: 'array',
-          title: '数据列表',
-          items: itemsSchema
-        }
-      }
-    };
-
-    if (region?.region === 'columns') {
-      result.properties = {
-        ...itemsSchema.properties,
-        ...result.properties
+    if (!schema.$$id && isCrudContext(context) && renderer.name === 'table2') {
+      return {
+        ...({id: schema.$$editor.id} as any),
+        name: plugin.name!,
+        regions: plugin.regions,
+        patchContainers: plugin.patchContainers,
+        vRendererConfig: plugin.vRendererConfig,
+        wrapperProps: plugin.wrapperProps,
+        wrapperResolve: plugin.wrapperResolve,
+        filterProps: plugin.filterProps,
+        $schema: plugin.$schema,
+        renderRenderer: plugin.renderRenderer
       };
     }
+    return super.getRendererInfo(context);
+  }
 
-    return result;
+  filterProps(props: any) {
+    const arr = resolveArrayDatasource(props);
+
+    if (!Array.isArray(arr) || !arr.length) {
+      const mockedData: any = {};
+
+      if (Array.isArray(props.columns)) {
+        props.columns.forEach((column: any) => {
+          if (column.name) {
+            setVariable(mockedData, column.name, mockValue(column));
+          }
+        });
+      }
+
+      props.value = repeatArray(mockedData, 10).map((item, index) => ({
+        ...item,
+        id: index + 1
+      }));
+    } else {
+      // 只取10条预览，否则太多卡顿
+      props.value = arr.slice(0, 10);
+    }
+
+    // 如果设置了可展开 默认把第一行展开
+    if (props.expandable) {
+      if (typeof props.expandable === 'boolean') {
+        props.expandable = {};
+      }
+      if (!props.expandable.type) {
+        props.expandable.type = 'container';
+        props.expandable.body = [
+          {
+            type: 'tpl',
+            tpl: '展开行内容',
+            wrapperComponent: '',
+            inline: false
+          }
+        ];
+      }
+
+      props.expandable.keyField = 'id';
+      props.expandable.expandedRowKeys = [1];
+    }
+
+    return props;
+  }
+
+  // 自动插入 label
+  beforeInsert(event: PluginEvent<InsertEventContext>) {
+    const context = event.context;
+
+    if (
+      (context.info.plugin === this ||
+        context.node.sameIdChild?.info.plugin === this) &&
+      context.region === 'columns'
+    ) {
+      context.data = {
+        ...context.data,
+        title: context.data.label ?? context.subRenderer?.name ?? '列名称'
+      };
+    }
   }
 
   panelBodyCreator = (context: BaseEventContext) => {
@@ -743,12 +767,14 @@ export class Table2Plugin extends BasePlugin {
               body: [
                 getSchemaTpl('apiControl', {
                   label: '快速保存',
-                  name: 'quickSaveApi'
+                  name: 'quickSaveApi',
+                  renderLabel: true
                 }),
 
                 getSchemaTpl('apiControl', {
                   label: '快速保存单条',
-                  name: 'quickSaveItemApi'
+                  name: 'quickSaveItemApi',
+                  renderLabel: true
                 })
               ]
             }
@@ -861,91 +887,66 @@ export class Table2Plugin extends BasePlugin {
     ]);
   };
 
-  filterProps(props: any) {
-    const arr = resolveArrayDatasource(props);
+  async buildDataSchemas(
+    node: EditorNodeType,
+    region?: EditorNodeType,
+    trigger?: EditorNodeType
+  ) {
+    const itemsSchema: any = {
+      $id: 'tableRow',
+      type: 'object',
+      properties: {}
+    };
+    const columns: EditorNodeType = node.children.find(
+      item => item.isRegion && item.region === 'columns'
+    );
 
-    if (!Array.isArray(arr) || !arr.length) {
-      const mockedData: any = {};
-
-      if (Array.isArray(props.columns)) {
-        props.columns.forEach((column: any) => {
-          if (column.name) {
-            setVariable(mockedData, column.name, mockValue(column));
-          }
-        });
+    if (columns) {
+      for (let current of columns.children) {
+        const schema = current.schema;
+        if (schema?.name) {
+          itemsSchema.properties[schema.name] = current.info?.plugin
+            ?.buildDataSchemas
+            ? await current.info.plugin.buildDataSchemas(current, region)
+            : {
+                type: 'string',
+                title: schema.label || schema.title
+              };
+        }
       }
-
-      props.value = repeatArray(mockedData, 10).map((item, index) => ({
-        ...item,
-        id: index + 1
-      }));
-    } else {
-      // 只取10条预览，否则太多卡顿
-      props.value = arr.slice(0, 10);
     }
 
-    // 如果设置了可展开 默认把第一行展开
-    if (props.expandable) {
-      if (typeof props.expandable === 'boolean') {
-        props.expandable = {};
-      }
-      if (!props.expandable.type) {
-        props.expandable.type = 'container';
-        props.expandable.body = [
-          {
-            type: 'tpl',
-            tpl: '展开行内容',
-            wrapperComponent: '',
-            inline: false
-          }
-        ];
-      }
+    let cellProperties = {};
+    if (trigger) {
+      const isColumnChild = someTree(
+        columns?.children,
+        item => item.id === trigger.id
+      );
 
-      props.expandable.keyField = 'id';
-      props.expandable.expandedRowKeys = [1];
+      isColumnChild && (cellProperties = itemsSchema.properties);
     }
 
-    return props;
-  }
+    const result: any = {
+      $id: 'table2',
+      type: 'object',
+      properties: {
+        ...cellProperties,
+        rows: {
+          type: 'array',
+          title: '数据列表',
+          items: itemsSchema
+        }
+      }
+    };
 
-  // 为了能够自动注入数据。
-  getRendererInfo(
-    context: RendererInfoResolveEventContext
-  ): BasicRendererInfo | void {
-    const plugin: PluginInterface = this;
-    const {schema, renderer} = context;
-
-    if (!schema.$$id && isCrudContext(context) && renderer.name === 'table2') {
-      return {
-        ...({id: schema.$$editor.id} as any),
-        name: plugin.name!,
-        regions: plugin.regions,
-        patchContainers: plugin.patchContainers,
-        vRendererConfig: plugin.vRendererConfig,
-        wrapperProps: plugin.wrapperProps,
-        wrapperResolve: plugin.wrapperResolve,
-        filterProps: plugin.filterProps,
-        $schema: plugin.$schema,
-        renderRenderer: plugin.renderRenderer
+    if (region?.region === 'columns') {
+      result.properties = {
+        ...itemsSchema.properties,
+        ...result.properties
       };
     }
-    return super.getRendererInfo(context);
-  }
 
-  // 自动插入 label
-  beforeInsert(event: PluginEvent<InsertEventContext>) {
-    const context = event.context;
-
-    if (
-      (context.info.plugin === this ||
-        context.node.sameIdChild?.info.plugin === this) &&
-      context.region === 'columns'
-    ) {
-      context.data = {
-        ...context.data,
-        title: context.data.label ?? context.subRenderer?.name ?? '列名称'
-      };
-    }
+    return result;
   }
 
   async getAvailableContextFields(
@@ -980,13 +981,10 @@ export class Table2Plugin extends BasePlugin {
       }
     }
 
-    const builder = this.dsBuilderMgr.resolveBuilderBySchema(
-      scopeNode.schema,
-      'api'
-    );
+    const builder = this.dsManager.getBuilderBySchema(scopeNode.schema);
 
     if (builder && scopeNode.schema.api) {
-      return builder.getAvailableContextFileds(
+      return builder.getAvailableContextFields(
         {
           schema: scopeNode.schema,
           sourceKey: 'api',

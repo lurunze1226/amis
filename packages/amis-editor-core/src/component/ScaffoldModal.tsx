@@ -232,7 +232,8 @@ export class ScaffoldModal extends React.Component<SubEditorProps> {
               {
                 data: store.scaffoldData,
                 onValidate: scaffoldFormContext.validate,
-                scopeRef: this.scopeRef
+                scopeRef: this.scopeRef,
+                manager
               },
               {
                 ...manager.env,

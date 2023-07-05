@@ -9,7 +9,6 @@ import {
   BasePlugin,
   RegionConfig,
   getSchemaTpl,
-  DSBuilderManager,
   tipedLabel
 } from 'amis-editor-core';
 import type {
@@ -17,7 +16,7 @@ import type {
   RendererPluginAction,
   RendererPluginEvent
 } from 'amis-editor-core';
-
+import {DSBuilderManager} from '../builder/DSBuilderManager';
 import {getEventControlConfig} from '../renderer/event-control/helper';
 
 export class ServicePlugin extends BasePlugin {
@@ -161,19 +160,19 @@ export class ServicePlugin extends BasePlugin {
     }
   ];
 
-  dsBuilderMgr: DSBuilderManager;
+  dsManager: DSBuilderManager;
 
   constructor(manager: EditorManager) {
     super(manager);
 
-    this.dsBuilderMgr = new DSBuilderManager('service', 'api');
+    this.dsManager = new DSBuilderManager(manager);
   }
 
   panelBodyCreator = (context: BaseEventContext) => {
-    const dsManager = this.dsBuilderMgr;
+    const dsManager = this.dsManager;
     /** 数据来源选择器 */
     const dsTypeSelect = () =>
-      dsManager.getDSSwitch({
+      dsManager.getDSSelectorSchema({
         type: 'select',
         mode: 'horizontal',
         horizontal: {
@@ -194,33 +193,35 @@ export class ServicePlugin extends BasePlugin {
         }
       });
     /** 数据源配置 */
-    const dsSetting = dsManager.collectFromBuilders((builder, builderFlag) => {
-      return {
-        type: 'container',
-        visibleOn: `this.dsType == null || this.dsType === '${builderFlag}'`,
-        body: flattenDeep([
-          builder.makeSourceSettingForm({
-            name: 'api',
-            label: '接口配置',
-            feat: 'View',
-            mode: 'horizontal',
-            ...(builderFlag === 'api' || builderFlag === 'apicenter'
-              ? {
-                  horizontalConfig: {
-                    labelAlign: 'left',
-                    horizontal: {
-                      justify: true,
-                      left: 4
+    const dsSetting = dsManager.buildCollectionFromBuilders(
+      (builder, builderKey) => {
+        return {
+          type: 'container',
+          visibleOn: `this.dsType == null || this.dsType === '${builderKey}'`,
+          body: flattenDeep([
+            builder.makeSourceSettingForm({
+              name: 'api',
+              label: '接口配置',
+              feat: 'View',
+              mode: 'horizontal',
+              ...(builderKey === 'api' || builderKey === 'apicenter'
+                ? {
+                    horizontalConfig: {
+                      labelAlign: 'left',
+                      horizontal: {
+                        justify: true,
+                        left: 4
+                      }
                     }
                   }
-                }
-              : {}),
-            inScaffold: false,
-            inCrud: false
-          } as any)
-        ])
-      };
-    });
+                : {}),
+              inScaffold: false,
+              inCrud: false
+            } as any)
+          ])
+        };
+      }
+    );
 
     return getSchemaTpl('tabs', [
       {
@@ -317,13 +318,10 @@ export class ServicePlugin extends BasePlugin {
     node: EditorNodeType,
     region?: EditorNodeType
   ) {
-    const builder = this.dsBuilderMgr.resolveBuilderBySchema(
-      scopeNode.schema,
-      'api'
-    );
+    const builder = this.dsManager.getBuilderBySchema(scopeNode.schema);
 
     if (builder && scopeNode.schema.api) {
-      return builder.getAvailableContextFileds(
+      return builder.getAvailableContextFields(
         {
           schema: scopeNode.schema,
           sourceKey: 'api',

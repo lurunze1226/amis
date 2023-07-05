@@ -17,9 +17,9 @@ import {
   BasicRendererInfo,
   PluginInterface,
   InsertEventContext,
-  ScaffoldForm,
-  DSBuilderManager
+  ScaffoldForm
 } from 'amis-editor-core';
+import {DSBuilderManager} from '../builder/DSBuilderManager';
 import {defaultValue, getSchemaTpl, tipedLabel} from 'amis-editor-core';
 import {mockValue} from 'amis-editor-core';
 import {EditorNodeType} from 'amis-editor-core';
@@ -436,12 +436,11 @@ export class TablePlugin extends BasePlugin {
     }
   ];
 
-  dsBuilderMgr: DSBuilderManager;
+  dsManager: DSBuilderManager;
 
   constructor(manager: EditorManager) {
     super(manager);
-
-    this.dsBuilderMgr = new DSBuilderManager('table', 'api');
+    this.dsManager = new DSBuilderManager(manager);
   }
 
   panelJustify = true;
@@ -902,13 +901,10 @@ export class TablePlugin extends BasePlugin {
       }
     }
 
-    const builder = this.dsBuilderMgr.resolveBuilderBySchema(
-      scopeNode.schema,
-      'api'
-    );
+    const builder = this.dsManager.getBuilderBySchema(scopeNode.schema);
 
     if (builder && scopeNode.schema.api) {
-      return builder.getAvailableContextFileds(
+      return builder.getAvailableContextFields(
         {
           schema: scopeNode.schema,
           sourceKey: 'api',

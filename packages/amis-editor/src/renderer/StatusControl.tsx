@@ -7,11 +7,9 @@ import cx from 'classnames';
 import {FormItem, Switch, Option} from 'amis';
 
 import {autobind, getSchemaTpl} from 'amis-editor-core';
-import {BaseLabelMark} from '../component/BaseControl';
 
 import type {FormControlProps} from 'amis-core';
-import type {SchemaCollection} from 'amis';
-import type {FormSchema} from '../../../amis/src/Schema';
+import type {SchemaCollection, FormSchema} from 'amis';
 
 export interface StatusControlProps extends FormControlProps {
   name: string;

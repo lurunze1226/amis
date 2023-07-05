@@ -15,10 +15,7 @@ import {
   tipedLabel,
   BaseEventContext
 } from 'amis-editor-core';
-import type {DSField} from 'amis-editor-core';
-import {fromPairs} from 'lodash';
-import type {TabsSchema} from 'amis';
-import type {SchemaObject} from 'amis';
+import type {DSField} from '../builder';
 import {remarkTpl} from '../component/BaseControl';
 
 export class TableCell2Plugin extends BasePlugin {
