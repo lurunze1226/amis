@@ -4,18 +4,41 @@
  */
 
 import {EditorManager} from 'amis-editor-core';
-import {DSFeature} from './constants';
 import {getFeatValueByKey, getFeatLabelByKey} from './utils';
 
 import type {EditorNodeType} from 'amis-editor-core';
 import type {
   DSFeatureType,
-  DSField,
   GenericSchema,
-  ScaffoldConfig
+  CRUDScaffoldConfig,
+  FormScaffoldConfig
 } from './type';
 
-export interface DSBuilderInterface<T = any> {
+export interface DSBuilderBaseOptions {
+  /** 渲染器类型 */
+  renderer: string;
+  /** Form应用场景 */
+  feat?: DSFeatureType;
+  /** CRUD应用场景 */
+  feats?: DSFeatureType[];
+  /** 当前组件的 Schema */
+  schema?: GenericSchema;
+  /** 数据源字段名 */
+  sourceKey?: string;
+  /** 是否在脚手架环境中 */
+  inScaffold?: boolean;
+  /** 如果为列表类容器，则会返回对应的节点 */
+  scopeNode?: EditorNodeType;
+  /** 数据源控件配置项 */
+  sourceSettings?: Record<string, any>;
+  /** 字段控件配置项 */
+  fieldSettings?: Record<string, any>;
+  [propName: string]: any;
+}
+
+export interface DSBuilderInterface<
+  T extends DSBuilderBaseOptions = DSBuilderBaseOptions
+> {
   /** 数据源中文名称，主要用于前端展示 */
   readonly name: string;
 
@@ -24,6 +47,9 @@ export interface DSBuilderInterface<T = any> {
 
   /** 数据源支持的功能场景 */
   readonly features: DSFeatureType[];
+
+  /** 是否为默认 */
+  readonly isDefault?: boolean;
 
   /** 是否默认隐藏 */
   defaultHidden?: boolean;
@@ -44,7 +70,10 @@ export interface DSBuilderInterface<T = any> {
   getContextFields(options: T): Promise<any>;
 
   /** 当前上下文可以使用的字段 */
-  getAvailableContextFields(options: T, target: EditorNodeType): Promise<any>;
+  getAvailableContextFields(
+    options: Omit<T, 'renderer'>,
+    target: EditorNodeType
+  ): Promise<any>;
 
   /** 构造数据源的可视化配置表单 */
   makeSourceSettingForm(options: T): any[];
@@ -76,21 +105,35 @@ export interface DSBuilderInterface<T = any> {
   /** 表格列 */
   buildCRUDColumnsSchema(options: T, componentId?: string): any;
 
-  /** 表格 */
+  /** 表格构建 */
   buildCRUDSchema(options: T): any;
 
-  /** 表单 */
+  /** 表单构建 */
   buildFormSchema(options: T): any;
 
-  /** 基于 schema 还原脚手架配置 */
-  guessScaffoldConfigFromSchema(schema: GenericSchema): ScaffoldConfig;
+  /** 基于 schema 还原CRUD脚手架配置 */
+  guessCRUDScaffoldConfig(options: {
+    schema: GenericSchema;
+    [propName: string]: any;
+  }): CRUDScaffoldConfig;
+
+  /** 基于 schema 还原Form脚手架配置 */
+  guessFormScaffoldConfig(options: {
+    schema: GenericSchema;
+    [propName: string]: any;
+  }): FormScaffoldConfig;
+
+  /** 重新构建 API 配置 */
+  buildApiSchema(options: T): Promise<any>;
 }
 
-export abstract class DSBuilder<T = Record<string, any>>
+export abstract class DSBuilder<T extends DSBuilderBaseOptions>
   implements DSBuilderInterface<T>
 {
   readonly name: string;
   readonly order: number;
+  /** 是否为默认 */
+  readonly isDefault?: boolean;
   defaultHidden?: boolean;
   features: DSFeatureType[];
 
@@ -115,7 +158,7 @@ export abstract class DSBuilder<T = Record<string, any>>
   abstract getContextFields(options: T): Promise<any>;
 
   abstract getAvailableContextFields(
-    options: T,
+    options: Omit<T, 'renderer'>,
     target: EditorNodeType
   ): Promise<any>;
 
@@ -153,8 +196,19 @@ export abstract class DSBuilder<T = Record<string, any>>
   /** 表单 */
   abstract buildFormSchema(options: T): any;
 
-  /** 基于 schema 还原脚手架配置 */
-  abstract guessScaffoldConfigFromSchema(schema: GenericSchema): ScaffoldConfig;
+  /** 基于 schema 还原CRUD脚手架配置 */
+  abstract guessCRUDScaffoldConfig(options: {
+    schema: GenericSchema;
+    [propName: string]: any;
+  }): CRUDScaffoldConfig;
+
+  /** 基于 schema 还原Form脚手架配置 */
+  abstract guessFormScaffoldConfig(options: {
+    schema: GenericSchema;
+    [propName: string]: any;
+  }): FormScaffoldConfig;
+
+  abstract buildApiSchema(options: T): Promise<any>;
 }
 
 export interface DSBuilderClass {
@@ -169,7 +223,7 @@ export const builderFactory = new Map<string, DSBuilderClass>();
 export const registerDSBuilder = (klass: DSBuilderClass) => {
   if (builderFactory.has(klass.key)) {
     console.warn(
-      `[amis-editor][DsBuilder] duplicate dsBuilder「${klass.key}」`
+      `[amis-editor][DSBuilder] duplicate DSBuilder「${klass.key}」`
     );
   }
 

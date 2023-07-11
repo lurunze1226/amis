@@ -100,7 +100,7 @@ export const DSFeatureList = Object.keys(
   DSFeature
 ) as (keyof typeof DSFeature)[];
 
-export const OperatorMap: Record<FormOperatorValue, FormOperator> = {
+export const FormOperatorMap: Record<FormOperatorValue, FormOperator> = {
   cancel: {
     label: '取消',
     value: 'cancel',

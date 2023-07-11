@@ -30,7 +30,7 @@ export class DSBuilderManager {
   }
 
   getBuilderBySchema(schema: any) {
-    let builder: DSBuilderInterface;
+    let builder: DSBuilderInterface | undefined;
 
     this.builders.forEach(value => {
       if (value.match(schema)) {
@@ -39,15 +39,28 @@ export class DSBuilderManager {
       }
     });
 
-    return builder!;
+    return builder ? builder : this.getDefaultBuilder();
   }
 
   getDefaultBuilderKey() {
-    const sorted = Array.from(this.builders.entries()).sort((lhs, rhs) => {
-      return (lhs[1].order ?? 0) - (rhs[1].order ?? 0);
-    });
+    const collections = Array.from(this.builders.entries());
+    const [defaultKey, _] =
+      collections.find(([_, builder]) => builder.isDefault === true) ??
+      collections.sort((lhs, rhs) => {
+        return (lhs[1].order ?? 0) - (rhs[1].order ?? 0);
+      })?.[0] ??
+      [];
 
-    return sorted[0][0];
+    return defaultKey;
+  }
+
+  getDefaultBuilder() {
+    const [_, defaultBuilder] =
+      Array.from(this.builders.entries()).find(
+        ([_, builder]) => builder.isDefault === true
+      ) ?? [];
+
+    return defaultBuilder!;
   }
 
   getAvailableBuilders() {

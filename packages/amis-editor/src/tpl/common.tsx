@@ -1676,3 +1676,14 @@ setSchemaTpl('anchorNavTitle', {
   type: 'input-text',
   required: true
 });
+
+setSchemaTpl('primaryField', {
+  type: 'input-text',
+  name: 'primaryField',
+  label: tipedLabel(
+    '主键',
+    '每行记录的唯一标识符，通常用于行选择、批量操作等场景。'
+  ),
+  pipeIn: defaultValue('id'),
+  required: true
+});

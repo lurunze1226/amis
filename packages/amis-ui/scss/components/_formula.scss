@@ -466,6 +466,10 @@
     display: flex;
     justify-content: center;
     align-items: center;
+
+    .icon-function {
+      transform: scale(0.8);
+    }
   }
 
   &-icon {

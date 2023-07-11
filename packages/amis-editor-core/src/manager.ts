@@ -1325,7 +1325,7 @@ export class EditorManager {
     //   value,
     //   diff
     // };
-    // this.trigger('after-update', updatedContext);
+    this.trigger('after-update', context);
   }
 
   /**

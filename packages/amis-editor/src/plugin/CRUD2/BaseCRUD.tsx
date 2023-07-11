@@ -42,29 +42,16 @@ import {ToolsConfig, FiltersConfig, OperatorsConfig} from './constants';
 import {FieldSetting} from '../../renderer/FieldSetting';
 
 import type {IFormItemStore, IFormStore, BaseApiObject} from 'amis-core';
-import type {ScaffoldConfig} from '../../builder/type';
-
-export type FeatOption = {
-  label: string;
-  value: DSFeatureType;
-  makeSetting?: (builder: DSBuilder) => any;
-  resolveSchema: (setting: any, builder: DSBuilder) => any;
-  align?: 'left' | 'right';
-  order?: number;
-};
+import type {CRUDScaffoldConfig} from '../../builder/type';
 
 /** 需要动态控制的属性 */
-export type DynamicControls = Partial<
+export type CRUDDynamicControls = Partial<
   Record<
     'columns' | 'toolbar' | 'filters',
     | Record<string, any>
     | ((context: BuildPanelEventContext) => Record<string, any>)
   >
 >;
-
-/** CURD脚手架配置 */
-interface CRUDPluginScaffold extends ScaffoldConfig {}
-
 export class BaseCRUDPlugin extends BasePlugin {
   static id = 'CRUD2Plugin';
 
@@ -221,15 +208,7 @@ export class BaseCRUDPlugin extends BasePlugin {
                 };
               }
             ),
-            {
-              type: 'input-text',
-              name: 'primaryField',
-              label: tipedLabel(
-                '主键',
-                '每行记录的唯一标识符，通常用于行选择、批量操作等场景。'
-              ),
-              pipeIn: defaultValue('id')
-            }
+            getSchemaTpl('primaryField')
           ]
         },
         {
@@ -295,68 +274,44 @@ export class BaseCRUDPlugin extends BasePlugin {
       ],
       /** 用于重新构建的数据回填 */
       pipeIn: async (schema: any) => {
-        const CRUDSchema = omit(schema, [
-          ...Object.values(DSFeature).map(item => `${item.value}Fields`),
-          '$$id',
-          '__fields',
-          '__relations',
-          '__filterableFields'
-        ]);
         /** 数据源类型 */
         const dsType = schema?.dsType ?? this.dsManager.getDefaultBuilderKey();
         const builder = this.dsManager.getBuilderByKey(dsType);
-        const scaffoldConfig = builder?.guessScaffoldConfigFromSchema(schema);
 
-        return {
-          ...omit(scaffoldConfig, ['feats', 'orders', 'filters']),
-          tools: intersection(scaffoldConfig?.feats, [
-            DSFeatureEnum.Insert,
-            DSFeatureEnum.BulkDelete,
-            DSFeatureEnum.BulkEdit
-          ]),
-          /** 数据操作 */
-          operators: intersection(scaffoldConfig?.feats, [
-            DSFeatureEnum.View,
-            DSFeatureEnum.Edit,
-            DSFeatureEnum.Delete
-          ]),
-          /** 条件查询 */
-          filters: intersection(scaffoldConfig?.feats, [
-            DSFeatureEnum.FuzzyQuery,
-            DSFeatureEnum.SimpleQuery,
-            DSFeatureEnum.AdvancedQuery
-          ]),
-          /** 标识是否为重新构建 */
-          __rebuild: !!CRUDSchema,
-          __pristineSchema: CRUDSchema
-        };
+        if (!builder) {
+          return {dsType};
+        }
+
+        const config = await builder.guessCRUDScaffoldConfig({schema});
+
+        return {...config};
       },
-      pipeOut: async (config: CRUDPluginScaffold) => {
-        const schema: any = cloneDeep(this.scaffold);
+      pipeOut: async (config: CRUDScaffoldConfig) => {
+        const scaffold: any = cloneDeep(this.scaffold);
         const builder = this.dsManager.getBuilderByScaffoldSetting(config);
 
         if (!builder) {
-          return schema;
+          return scaffold;
         }
 
-        const options = {
-          feats: [
-            ...(config.tools ?? []),
-            ...(config.filters ?? []),
-            ...(config.operators ?? [])
-          ].filter(Boolean),
-          ...omit(config, ['tools', 'filters', 'operators'])
-        };
+        const feats = [
+          DSFeatureEnum.List,
+          ...(config.tools ?? []),
+          ...(config.filters ?? []),
+          ...(config.operators ?? [])
+        ].filter(Boolean);
 
         return builder.buildCRUDSchema({
-          feats: options.feats,
+          feats,
           renderer: 'crud',
           inScaffold: true,
-          scaffoldConfig: options
+          entitySource: config?.entitySource,
+          fallbackSchema: scaffold,
+          scaffoldConfig: config
         });
       },
-      validate: (data: CRUDPluginScaffold, form: IFormStore) => {
-        const feat = data?.feat ?? 'List';
+      validate: (data: CRUDScaffoldConfig, form: IFormStore) => {
+        const feat = 'List';
         const builder = this.dsManager.getBuilderByScaffoldSetting(data);
         const featValue = builder?.getFeatValueByKey(feat);
         const fieldsKey = `${featValue}Fields`;
@@ -398,17 +353,32 @@ export class BaseCRUDPlugin extends BasePlugin {
           }
 
           const tabContent = [
-            ...(!['List', 'SimpleQuery'].includes(item.value)
+            ...(item.value === 'Edit'
+              ? /** CRUD的编辑单条需要初始化接口 */ builder.makeSourceSettingForm(
+                  {
+                    feat: item.value,
+                    renderer: 'crud',
+                    inScaffold: true,
+                    sourceKey: 'initApi'
+                  }
+                )
+              : !['List', 'SimpleQuery'].includes(item.value)
               ? builder.makeSourceSettingForm({
-                  feat: item.value,
+                  feat: item.value as Extract<
+                    DSFeatureType,
+                    'List' | 'SimpleQuery'
+                  >,
                   renderer: 'crud',
                   inScaffold: true
                 })
               : []),
             ...builder.makeFieldsSettingForm({
-              feat: item.value,
+              feat: item.value as DSFeatureType,
               renderer: 'crud',
-              inScaffold: true
+              inScaffold: true,
+              fieldSettings: {
+                renderLabel: false
+              }
             })
           ];
 
@@ -441,7 +411,7 @@ export class BaseCRUDPlugin extends BasePlugin {
   /** CRUD公共配置面板 */
   baseCRUDPanelBody = (
     context: BuildPanelEventContext,
-    dynamicControls: DynamicControls = {}
+    dynamicControls: CRUDDynamicControls = {}
   ) => {
     return getSchemaTpl('tabs', [
       this.renderPropsTab(context, dynamicControls),
@@ -454,7 +424,7 @@ export class BaseCRUDPlugin extends BasePlugin {
   /** 属性面板 */
   renderPropsTab(
     context: BuildPanelEventContext,
-    dynamicControls: DynamicControls = {}
+    dynamicControls: CRUDDynamicControls = {}
   ) {
     const builder = this.dsManager.getBuilderBySchema(context.node.schema);
     /** 动态加载的配置集合 */
@@ -542,15 +512,7 @@ export class BaseCRUDPlugin extends BasePlugin {
           };
         }),
         /** 主键配置，TODO：支持联合主键 */
-        {
-          type: 'input-text',
-          name: 'primaryField',
-          label: tipedLabel(
-            '主键',
-            '每行记录的唯一标识符，通常用于行选择、批量操作等场景。'
-          ),
-          pipeIn: defaultValue('id')
-        },
+        getSchemaTpl('primaryField'),
         {
           name: 'placeholder',
           pipeIn: defaultValue('暂无数据'),
@@ -726,7 +688,7 @@ export class BaseCRUDPlugin extends BasePlugin {
   /** 外观面板 */
   renderStylesTab(
     context: BuildPanelEventContext,
-    dynamicControls: DynamicControls = {}
+    dynamicControls: CRUDDynamicControls = {}
   ) {
     return {
       title: '外观',
@@ -758,7 +720,7 @@ export class BaseCRUDPlugin extends BasePlugin {
   /** 事件面板 */
   renderEventTab(
     context: BuildPanelEventContext,
-    dynamicControls: DynamicControls = {}
+    dynamicControls: CRUDDynamicControls = {}
   ) {
     return {
       title: '事件',

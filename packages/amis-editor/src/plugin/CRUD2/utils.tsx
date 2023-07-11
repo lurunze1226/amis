@@ -14,7 +14,15 @@ export const makeAsyncLayer = (schemaBuilderFn: () => Promise<any>) => {
     const schemaFormRender = await schemaBuilderFn();
 
     return {
-      default: (props: any) => <>{schemaFormRender(props)}</>
+      default: (props: any) => (
+        <>
+          {typeof schemaFormRender === 'function'
+            ? schemaFormRender(props)
+            : () => {
+                return schemaFormRender;
+              }}
+        </>
+      )
     };
   });
 

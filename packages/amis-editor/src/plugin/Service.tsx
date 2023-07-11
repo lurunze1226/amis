@@ -14,30 +14,47 @@ import {
 import type {
   EditorManager,
   RendererPluginAction,
-  RendererPluginEvent
+  RendererPluginEvent,
+  BuildPanelEventContext,
+  BasicPanelItem
 } from 'amis-editor-core';
 import {DSBuilderManager} from '../builder/DSBuilderManager';
 import {getEventControlConfig} from '../renderer/event-control/helper';
 
 export class ServicePlugin extends BasePlugin {
   static id = 'ServicePlugin';
+
   // 关联渲染器名字
   rendererName = 'service';
-  $schema = '/schemas/ServiceSchema.json';
-  // 组件名称
+
   name = '服务Service';
+
   panelTitle = '服务Service';
+
+  icon = 'fa fa-server';
+
+  pluginIcon = 'service-plugin';
+
+  panelIcon = 'service-plugin';
+
+  $schema = '/schemas/ServiceSchema.json';
+
   isBaseComponent = true;
+
+  order = -850;
+
   description =
     '功能性容器，可以用来加载数据或者加载渲染器配置。加载到的数据在容器可以使用。';
+
   docLink = '/amis/zh-CN/components/service';
+
   tags = ['数据容器'];
-  icon = 'fa fa-server';
-  pluginIcon = 'service-plugin';
+
   scaffold = {
     type: 'service',
     body: []
   };
+
   previewSchema = {
     type: 'service',
     body: [
@@ -168,6 +185,35 @@ export class ServicePlugin extends BasePlugin {
     this.dsManager = new DSBuilderManager(manager);
   }
 
+  buildEditorPanel(
+    context: BuildPanelEventContext,
+    panels: Array<BasicPanelItem>
+  ) {
+    const {node, selections} = context;
+
+    if (context.info.plugin === this && node.type === this.rendererName) {
+      const store = this.manager.store;
+
+      if (!store.activeId || selections.length) {
+        return;
+      }
+
+      panels.push({
+        key: 'form',
+        icon: this.panelIcon,
+        title: this.panelTitle,
+        render: this.manager.makeSchemaFormRender({
+          panelById: store.activeId,
+          body: this.panelBodyCreator(context),
+          pipeOut: this.rebuildApiSchemaBeforeChange.bind(this)
+        })
+      });
+      return;
+    }
+
+    return super.buildEditorPanel(context, panels);
+  }
+
   panelBodyCreator = (context: BaseEventContext) => {
     const dsManager = this.dsManager;
     /** 数据来源选择器 */
@@ -188,6 +234,8 @@ export class ServicePlugin extends BasePlugin {
               }
             });
             form.deleteValueByName('__fields');
+            form.deleteValueByName('__relations');
+            form.setValueByName('api', undefined);
           }
           return value;
         }
@@ -200,24 +248,27 @@ export class ServicePlugin extends BasePlugin {
           visibleOn: `this.dsType == null || this.dsType === '${builderKey}'`,
           body: flattenDeep([
             builder.makeSourceSettingForm({
-              name: 'api',
-              label: '接口配置',
               feat: 'View',
-              mode: 'horizontal',
-              ...(builderKey === 'api' || builderKey === 'apicenter'
-                ? {
-                    horizontalConfig: {
-                      labelAlign: 'left',
-                      horizontal: {
-                        justify: true,
-                        left: 4
+              renderer: 'service',
+              inScaffold: false,
+              sourceSettings: {
+                name: 'api',
+                label: '接口配置',
+                mode: 'horizontal',
+                ...(builderKey === 'api' || builderKey === 'apicenter'
+                  ? {
+                      horizontalConfig: {
+                        labelAlign: 'left',
+                        horizontal: {
+                          justify: true,
+                          left: 4
+                        }
                       }
                     }
-                  }
-                : {}),
-              inScaffold: false,
-              inCrud: false
-            } as any)
+                  : {}),
+                useFieldManager: builderKey === 'model-entity'
+              }
+            })
           ])
         };
       }
@@ -299,6 +350,22 @@ export class ServicePlugin extends BasePlugin {
       }
     ]);
   };
+
+  async rebuildApiSchemaBeforeChange(schema: any) {
+    const builder = this.dsManager.getBuilderBySchema(schema);
+
+    try {
+      const updatedSchema = await builder.buildApiSchema({
+        renderer: 'service',
+        schema
+      });
+      return updatedSchema;
+    } catch (e) {
+      console.error(e);
+    }
+
+    return schema;
+  }
 
   rendererBeforeDispatchEvent(node: EditorNodeType, e: any, data: any) {
     if (e === 'fetchInited') {

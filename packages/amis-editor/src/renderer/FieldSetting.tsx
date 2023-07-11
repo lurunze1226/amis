@@ -289,7 +289,8 @@ export class FieldSetting extends React.Component<
           loading={loading}
           disabled={!isApiValid}
           disabledTip={{
-            content: '请先填写初始化接口',
+            content:
+              renderer === 'form' ? '请先填写初始化接口' : '请先填写接口',
             tooltipTheme: 'dark'
           }}
           onClick={e => this.handleGenerateFields(e)}
@@ -479,8 +480,12 @@ export class FieldSetting extends React.Component<
                                       value: 'input-date'
                                     },
                                     {
-                                      label: '表格',
+                                      label: '表格编辑',
                                       value: 'input-table'
+                                    },
+                                    {
+                                      label: '组合输入',
+                                      value: 'combo'
                                     },
                                     {
                                       label: '文件上传',

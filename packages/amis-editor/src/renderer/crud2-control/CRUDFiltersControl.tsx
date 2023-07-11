@@ -5,12 +5,14 @@
 
 import React from 'react';
 import {findDOMNode} from 'react-dom';
-import uniq from 'lodash/uniq';
 import cloneDeep from 'lodash/cloneDeep';
 import {FormItem, Button, Icon, toast, Switch, Spinner, autobind} from 'amis';
-import {traverseSchemaDeep} from '../../builder/utils';
 
-import type {DSFeatureType, DSBuilderInterface} from '../../builder';
+import type {
+  DSFeatureType,
+  DSBuilderInterface,
+  CRUDScaffoldConfig
+} from '../../builder';
 import type {EditorNodeType} from 'amis-editor-core';
 import type {FormControlProps} from 'amis';
 import type {ColumnSchema} from 'amis/lib/renderers/Table2';
@@ -78,11 +80,10 @@ export class CRUDFiltersControl extends React.Component<
 
   @autobind
   async initOptions() {
-    const {manager, nodeId, data: ctx, feat, builder} = this.props;
+    const {manager, nodeId} = this.props;
     const store = manager.store;
     const node = store.getNodeById(nodeId);
     const CRUDSchema = node.schema;
-    const config = builder.guessScaffoldConfigFromSchema(CRUDSchema);
     /** TODO: 考虑 filter 数组的场景 */
     const filterSchema = CRUDSchema.filter?.[0] ?? CRUDSchema.filter;
     let options: Option[] = [];
@@ -129,7 +130,7 @@ export class CRUDFiltersControl extends React.Component<
     const CRUDNode = store.getNodeById(nodeId);
     const CRUDSchema = CRUDNode?.schema;
     const CRUDSchemaID = CRUDSchema?.schema?.id;
-    const config = builder.guessScaffoldConfigFromSchema(CRUDSchema);
+    const config = builder.guessCRUDScaffoldConfig({schema: CRUDSchema});
     const filterSchema = cloneDeep(
       Array.isArray(CRUDNode?.schema.filter)
         ? CRUDNode?.schema.filter.find(
@@ -144,6 +145,7 @@ export class CRUDFiltersControl extends React.Component<
           {
             renderer: 'crud',
             scaffoldConfig: {
+              dsType: CRUDSchema.dsType,
               simpleQueryFields: (CRUDSchema.columns ?? [])
                 .filter((item: ColumnSchema) => item.type !== 'operation')
                 .map((item: ColumnSchema) => ({
@@ -177,6 +179,7 @@ export class CRUDFiltersControl extends React.Component<
         const filter = builder.buildCRUDFilterSchema({
           renderer: 'crud',
           scaffoldConfig: {
+            dsType: CRUDSchema.dsType,
             simpleQueryFields: config.simpleQueryFields ?? []
           }
         });

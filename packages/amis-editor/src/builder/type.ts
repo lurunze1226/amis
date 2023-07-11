@@ -24,6 +24,8 @@ export type DSFeatureType = keyof typeof DSFeature;
 
 export type GenericSchema = Record<string, any>;
 
+export type DSRendererType = 'form' | 'crud';
+
 export interface ScaffoldField {
   /** 标题 */
   label: string;
@@ -39,6 +41,9 @@ export interface ScaffoldField {
 }
 
 /** 表单操作 */
+export type ApiConfig = string | BaseApiObject;
+
+/** 表单操作 */
 export type FormOperatorValue = 'cancel' | 'reset' | 'submit';
 
 /** 表单操作按钮 */
@@ -49,39 +54,69 @@ export interface FormOperator {
   schema: Record<string, any>;
 }
 
-export interface ScaffoldConfig {
+export interface ScaffoldConfigBase {
   /** 数据源类型 */
   dsType: string;
-  /** Form功能场景 */
-  feat?: DSFeatureType;
-  /** CRUD应用场景 */
-  feats?: DSFeatureType[];
-  /** 表单初始化接口 */
-  initApi?: string | BaseApiObject;
-  /** 表格 list 接口 */
-  listApi?: string | BaseApiObject;
-  viewApi?: string | BaseApiObject;
-  editApi?: string | BaseApiObject;
-  bulkEditApi?: string | BaseApiObject;
-  deleteApi?: string | BaseApiObject;
-  bulkDeleteApi?: string | BaseApiObject;
-  insertApi?: string | BaseApiObject;
-  listFields?: ScaffoldField[];
-  insertFields?: ScaffoldField[];
-  viewFields?: ScaffoldField[];
-  editFields?: ScaffoldField[];
-  bulkEditFields?: ScaffoldField[];
-  fuzzyQueryFields?: ScaffoldField[];
-  simpleQueryFields?: ScaffoldField[];
-  advancedQueryFields?: ScaffoldField[];
-  importFields?: ScaffoldField[];
-  exportFields?: ScaffoldField[];
-  operators?: FormOperator[];
-  /** 表格脚手架时的主键 */
-  primaryField?: string;
-  /** 是否为重新构建 */
-  __rebuild?: boolean;
   /** 重新构建时用户的原始 Schema */
   __pristineSchema?: Record<string, any>;
   [propName: string]: any;
 }
+
+export interface FormScaffoldConfig<
+  Fields extends Record<string, any> = ScaffoldField,
+  API extends any = ApiConfig
+> extends ScaffoldConfigBase {
+  /** Form功能场景 */
+  feat?: DSFeatureType;
+  /** 表单初始化接口 */
+  initApi?: API;
+  insertApi?: API;
+  editApi?: API;
+  bulkEditApi?: API;
+  insertFields?: Fields[];
+  editFields?: Fields[];
+  bulkEditFields?: Fields[];
+  operators?: FormOperator[];
+}
+
+export interface CRUDScaffoldConfig<
+  Fields extends Record<string, any> = ScaffoldField,
+  API extends any = ApiConfig
+> extends ScaffoldConfigBase {
+  /** 工具栏 */
+  tools?: Extract<DSFeatureType, 'Insert' | 'BulkDelete' | 'BulkEdit'>[];
+  /** 数据操作 */
+  operators?: Extract<DSFeatureType, 'View' | 'Edit' | 'Delete'>[];
+  /** 条件查询 */
+  filters?: Extract<
+    DSFeatureType,
+    'FuzzyQuery' | 'SimpleQuery' | 'AdvancedQuery'
+  >[];
+  /** 表格 list 接口 */
+  listApi?: API;
+  viewApi?: API;
+  editApi?: API;
+  /** 编辑表单的初始化接口 */
+  initApi?: API;
+  bulkEditApi?: API;
+  deleteApi?: API;
+  bulkDeleteApi?: API;
+  insertApi?: API;
+  listFields?: Fields[];
+  insertFields?: Fields[];
+  viewFields?: Fields[];
+  editFields?: Fields[];
+  bulkEditFields?: Fields[];
+  fuzzyQueryFields?: Fields[];
+  simpleQueryFields?: Fields[];
+  advancedQueryFields?: Fields[];
+  importFields?: Fields[];
+  exportFields?: Fields[];
+  /** 表格脚手架时的主键 */
+  primaryField?: string;
+}
+
+export type ScaffoldConfig<
+  Fields extends Record<string, any> = ScaffoldField,
+  API extends any = ApiConfig
+> = FormScaffoldConfig<Fields, API> | CRUDScaffoldConfig<Fields, API>;

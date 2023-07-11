@@ -183,6 +183,7 @@ export class ScaffoldModal extends React.Component<SubEditorProps> {
       store.setScaffoldError(e.message);
     } finally {
       store.setScaffoldBuzy(false);
+      store.setScaffoldStep(0);
     }
   }
 

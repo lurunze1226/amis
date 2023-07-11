@@ -17,7 +17,6 @@ import {
 import {defaultValue, getSchemaTpl} from 'amis-editor-core';
 import {diff, JSONPipeOut, repeatArray} from 'amis-editor-core';
 import {resolveArrayDatasource} from '../util';
-import {isCrudContext} from '../util';
 
 export class CardsPlugin extends BasePlugin {
   static id = 'CardsPlugin';
@@ -77,7 +76,8 @@ export class CardsPlugin extends BasePlugin {
 
   panelTitle = '卡片集';
   panelBodyCreator = (context: BaseEventContext) => {
-    const isCRUDBody = isCrudContext(context);
+    const isCRUDBody =
+      context.schema.type === 'crud2' || context.schema.type === 'crud';
     const curPosition = context?.schema?.style?.position;
     const isAbsolute = curPosition === 'fixed' || curPosition === 'absolute';
 
@@ -291,7 +291,10 @@ export class CardsPlugin extends BasePlugin {
   ): BasicRendererInfo | void {
     const plugin: PluginInterface = this;
     const {renderer, schema} = context;
-    if (!schema.$$id && isCrudContext(context) && renderer.name === 'cards') {
+    const isCRUD = ['crud', 'crud2'].includes(
+      context?.schema?.name ?? context?.schema?.$$editor?.renderer?.name
+    );
+    if (!schema.$$id && isCRUD && renderer.name === 'cards') {
       return {
         ...({id: schema.$$editor.id} as any),
         name: plugin.name!,

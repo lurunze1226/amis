@@ -65,9 +65,3 @@ export const updateComponentContext = (variables: any[]) => {
   }
   return items;
 };
-
-export function isCrudContext(ctx: any) {
-  return ['crud', 'crud2'].includes(
-    ctx?.schema?.name ?? ctx?.schema?.$$editor?.renderer?.name
-  );
-}

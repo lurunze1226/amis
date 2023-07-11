@@ -1,6 +1,7 @@
 import cx from 'classnames';
 import flatten from 'lodash/flatten';
-import omit from 'lodash/omit';
+import cloneDeep from 'lodash/cloneDeep';
+import {isObject} from 'amis-core';
 import {
   BasePlugin,
   tipedLabel,
@@ -21,75 +22,29 @@ import {
   RegionConfig,
   registerEditorPlugin
 } from 'amis-editor-core';
-import {DSFeature, DSBuilderManager} from '../../builder';
+import {DSFeatureType, DSBuilderManager, DSFeatureEnum} from '../../builder';
+import {FormOperatorMap} from '../../builder/constants';
 import {getEventControlConfig} from '../../renderer/event-control/helper';
 import {FieldSetting} from '../../renderer/FieldSetting';
 
 import type {FormSchema} from 'amis/lib/Schema';
 import type {IFormStore, IFormItemStore} from 'amis-core';
-import type {
-  ScaffoldConfig,
-  FormOperator,
-  FormOperatorValue
-} from '../../builder/type';
+import type {FormScaffoldConfig} from '../../builder';
 
-/** 表单使用场景 */
-export enum FormFeatEnum {
-  Insert = 'Insert',
-  Edit = 'Edit',
-  BulkEdit = 'BulkEdit'
-}
-
-export type FormPluginFeat = keyof typeof FormFeatEnum;
+export type FormPluginFeat = Extract<
+  DSFeatureType,
+  'Insert' | 'Edit' | 'BulkEdit'
+>;
 
 export interface ExtendFormSchema extends FormSchema {
   feat?: FormPluginFeat;
   dsType?: string;
 }
 
-/** Form脚手架配置 */
-export interface FormPluginScaffold extends ScaffoldConfig {
-  /** 使用场景 */
-  feat: FormPluginFeat;
-  /** 表单操作 */
-  operators: FormOperator[];
-}
-
-const Features: Array<{
-  label: string;
-  value: FormPluginFeat;
-}> = [
-  {label: '新增', value: FormFeatEnum.Insert},
-  {label: '编辑', value: FormFeatEnum.Edit},
-  {label: '批量编辑', value: FormFeatEnum.BulkEdit}
-];
-
-const OperatorMap: Record<FormOperatorValue, FormOperator> = {
-  cancel: {
-    label: '取消',
-    value: 'cancel',
-    order: 0,
-    schema: {
-      level: 'default'
-    }
-  },
-  reset: {
-    label: '重置',
-    value: 'reset',
-    order: 1,
-    schema: {
-      level: 'default'
-    }
-  },
-  submit: {
-    label: '提交',
-    value: 'submit',
-    order: 2,
-    schema: {
-      level: 'primary'
-    }
-  }
-};
+/** 动态注册的控件 */
+export type FormDynamicControls = Partial<
+  Record<string, (context: BaseEventContext) => any>
+>;
 
 export class FormPlugin extends BasePlugin {
   static id = 'FormPlugin';
@@ -399,12 +354,21 @@ export class FormPlugin extends BasePlugin {
     }
   ];
 
+  Features: Array<{
+    label: string;
+    value: FormPluginFeat;
+  }> = [
+    {label: '新增', value: DSFeatureEnum.Insert},
+    {label: '编辑', value: DSFeatureEnum.Edit},
+    {label: '批量编辑', value: DSFeatureEnum.BulkEdit}
+  ];
+
   constructor(manager: EditorManager) {
     super(manager);
     this.dsManager = new DSBuilderManager(manager);
   }
 
-  /** 脚手架表单 */
+  /** 表单脚手架 */
   get scaffoldForm(): ScaffoldForm {
     return {
       title: '表单创建向导',
@@ -414,33 +378,33 @@ export class FormPlugin extends BasePlugin {
           leftFixed: 'sm'
         }
       },
-      className: 'ae-Scaffold-Modal ae-Scaffold-Modal-content',
       canRebuild: true,
+      className: 'ae-Scaffold-Modal ae-Scaffold-Modal-content',
       body: [
         {
           type: 'radios',
           name: 'feat',
           label: '使用场景',
-          value: FormFeatEnum.Insert,
-          options: Features,
+          value: DSFeatureEnum.Insert,
+          options: this.Features,
           onChange: (
             value: FormPluginFeat,
             oldValue: FormPluginFeat,
             model: IFormItemStore,
             form: IFormStore
           ) => {
-            /** 新增 or 批量编辑不需要初始化接口 */
-            if (
-              FormFeatEnum.Insert === value ||
-              FormFeatEnum.BulkEdit === value
-            ) {
-              form.deleteValueByName('initApi');
-            } else {
-              form.setValueByName('initApi', '');
-            }
-
-            if (form.data.api) {
-              form.setValueByName('api.action', value);
+            if (value !== oldValue) {
+              form.setValues({
+                dsType: this.dsManager.getDefaultBuilderKey(),
+                initApi:
+                  DSFeatureEnum.Insert === value ||
+                  DSFeatureEnum.BulkEdit === value
+                    ? undefined
+                    : '',
+                insertApi: undefined,
+                editApi: undefined,
+                bulkEditApi: undefined
+              });
             }
           }
         },
@@ -464,7 +428,7 @@ export class FormPlugin extends BasePlugin {
         }),
         /** 数据源相关配置 */
         ...flatten(
-          Features.map(feat =>
+          this.Features.map(feat =>
             this.dsManager.buildCollectionFromBuilders(
               (builder, builderKey) => {
                 return {
@@ -474,11 +438,11 @@ export class FormPlugin extends BasePlugin {
                   body: flatten([
                     builder.makeSourceSettingForm({
                       feat: feat.value,
-                      label:
-                        builderKey === 'model-entity' ? builderKey : '提交接口',
                       renderer: 'form',
                       inScaffold: true,
-                      userOrders: false
+                      sourceSettings: {
+                        userOrders: false
+                      }
                     }),
                     builder.makeFieldsSettingForm({
                       feat: feat.value,
@@ -499,56 +463,57 @@ export class FormPlugin extends BasePlugin {
           joinValues: false,
           extractValue: false,
           options: [
-            OperatorMap['reset'],
-            OperatorMap['submit'],
-            OperatorMap['cancel']
+            FormOperatorMap['reset'],
+            FormOperatorMap['submit'],
+            FormOperatorMap['cancel']
           ]
         }
       ],
       pipeIn: async (schema: ExtendFormSchema) => {
-        const FormSchema = schema.dsType
-          ? omit(schema, [
-              ...Object.values(DSFeature).map(item => `${item.value}Fields`),
-              '$$id',
-              '__fields',
-              '__relations',
-              '__filterableFields'
-            ])
-          : undefined;
         /** 数据源类型 */
         const dsType = schema?.dsType ?? this.dsManager.getDefaultBuilderKey();
         const builder = this.dsManager.getBuilderByKey(dsType);
-        const scaffoldConfig = builder?.guessScaffoldConfigFromSchema(schema);
 
-        return {
-          ...scaffoldConfig,
-          /** 标识是否为重新构建 */
-          __rebuild: !!FormSchema,
-          __pristineSchema: FormSchema
-        };
-      },
-      pipeOut: async (config: FormPluginScaffold) => {
-        const builder = this.dsManager.getBuilderByScaffoldSetting(config);
-
-        /** 缺少实体信息直接走默认的脚手架 */
         if (!builder) {
-          return this.scaffold;
+          return {dsType};
         }
 
-        return builder.buildFormSchema({
+        const config = await builder.guessFormScaffoldConfig({schema});
+
+        return {...config};
+      },
+      pipeOut: async (config: FormScaffoldConfig) => {
+        const scaffold: any = cloneDeep(this.scaffold);
+        const builder = this.dsManager.getBuilderByScaffoldSetting(config);
+
+        if (!builder) {
+          return scaffold;
+        }
+
+        const schema = await builder.buildFormSchema({
           feat: config.feat,
           renderer: 'form',
           inScaffold: true,
+          entitySource: config?.entitySource,
+          fallbackSchema: scaffold,
           scaffoldConfig: config
         });
+
+        return schema;
       },
-      validate: (data: FormPluginScaffold, form: IFormStore) => {
+      validate: (data: FormScaffoldConfig, form: IFormStore) => {
         const {feat} = data;
         const builder = this.dsManager.getBuilderByScaffoldSetting(data);
-        const featValue = builder?.getFeatValueByKey(feat);
+        const featValue = builder?.getFeatValueByKey(
+          feat ?? DSFeatureEnum.Insert
+        );
         const apiKey = `${featValue}Api`;
         const fieldsKey = `${featValue}Fields`;
         const errors: Record<string, string> = {};
+
+        if (data?.dsType === 'model-entity') {
+          return errors;
+        }
 
         // if (!form.data[apiKey]) {
         //   errors[apiKey] = '请输入接口信息';
@@ -598,12 +563,42 @@ export class FormPlugin extends BasePlugin {
     return super.buildEditorPanel(context, panels);
   }
 
+  afterUpdate(event: PluginEvent<ChangeEventContext>) {
+    const context = event.context;
+
+    if (
+      context.info.renderer.name === 'form' &&
+      context.diff?.some(change => change.path?.join('.') === 'wrapWithPanel')
+    ) {
+      this.manager.buildPanels();
+    }
+  }
+
+  protected _dynamicControls: FormDynamicControls = {};
+
+  get dynamicControls() {
+    return this._dynamicControls;
+  }
+
+  set dynamicControls(controls: FormDynamicControls) {
+    if (!controls || !isObject(controls)) {
+      throw new Error(
+        '[amis-editor][FormPlugin] dynamicControls的值必须是一个对象'
+      );
+    }
+
+    this._dynamicControls = {...this._dynamicControls, ...controls};
+  }
+
   panelBodyCreator = (context: BaseEventContext) => {
+    const dc = this.dynamicControls;
     const builder = this.dsManager.getBuilderBySchema(context.schema);
     /** 是否为CRUD的过滤器表单 */
     const isCRUDFilter: boolean =
       /\/crud\/filter\/form$/.test(context.path) ||
-      /\/crud2\/filter\/\d\/form$/.test(context.path);
+      /\/crud2\/filter\/\d\/form$/.test(context.path) ||
+      /\/crud2\/filter\/form$/.test(context.path) ||
+      /body\/0\/filter$/.test(context.schemaPath);
     /** 表单是否位于Dialog内 */
     const isInDialog: boolean = /(?:\/|^)dialog\/.+$/.test(context.path);
     /** 是否使用Panel包裹 */
@@ -647,32 +642,25 @@ export class FormPlugin extends BasePlugin {
                       type: 'select',
                       name: 'feat',
                       label: '使用场景',
-                      value: FormFeatEnum.Insert,
-                      options: Features,
+                      value: DSFeatureEnum.Insert,
+                      options: this.Features,
                       onChange: (
                         value: FormPluginFeat,
                         oldValue: FormPluginFeat,
                         model: IFormItemStore,
                         form: IFormStore
                       ) => {
-                        if (value === oldValue) {
-                          return false;
+                        if (value !== oldValue) {
+                          form.setValues({
+                            dsType: this.dsManager.getDefaultBuilderKey(),
+                            initApi:
+                              DSFeatureEnum.Insert === value ||
+                              DSFeatureEnum.BulkEdit === value
+                                ? undefined
+                                : '',
+                            api: undefined
+                          });
                         }
-                        /** 新增 or 批量编辑不需要初始化接口 */
-                        if (
-                          FormFeatEnum.Insert === value ||
-                          FormFeatEnum.BulkEdit === value
-                        ) {
-                          form.deleteValueByName('initApi');
-                        } else {
-                          form.setValueByName('initApi', '');
-                        }
-
-                        if (form.data.api) {
-                          form.setValueByName('api.action', value);
-                        }
-
-                        return;
                       }
                     },
                     this.dsManager.getDSSelectorSchema({
@@ -726,7 +714,7 @@ export class FormPlugin extends BasePlugin {
                           value === 'model-entity'
                             ? {
                                 action:
-                                  data?.feat === FormFeatEnum.Insert
+                                  data?.feat === DSFeatureEnum.Insert
                                     ? 'create'
                                     : 'update',
                                 limit: 'piece'
@@ -737,22 +725,21 @@ export class FormPlugin extends BasePlugin {
                       }
                     }),
                     ...flatten(
-                      Features.map(feat =>
+                      this.Features.map(feat =>
                         this.dsManager.buildCollectionFromBuilders(
                           (builder, builderKey, index) => ({
                             type: 'container',
                             className: 'form-item-gap',
-                            visibleOn: `data.feat === '${feat.value}' && ( data.dsType === '${builderKey}' || (!data.dsType && ${index} === 0))`,
+                            visibleOn: `data.feat === '${feat.value}' && (data.dsType === '${builderKey}' || (!data.dsType && ${index} === 0))`,
                             body: flatten([
                               builder.makeSourceSettingForm({
+                                renderer: 'form',
                                 feat: feat.value,
-                                label:
-                                  builderKey === 'model-entity'
-                                    ? builderKey
-                                    : '提交接口',
-                                // @ts-ignore
-                                renderLabel: true,
-                                userOrders: false
+                                inScaffold: false,
+                                sourceSettings: {
+                                  renderLabel: true,
+                                  userOrders: false
+                                }
                               })
                             ])
                           })
@@ -1060,17 +1047,6 @@ export class FormPlugin extends BasePlugin {
     ];
   };
 
-  afterUpdate(event: PluginEvent<ChangeEventContext>) {
-    const context = event.context;
-
-    if (
-      context.info.renderer.name === 'form' &&
-      context.diff?.some(change => change.path?.join('.') === 'wrapWithPanel')
-    ) {
-      this.manager.buildPanels();
-    }
-  }
-
   async buildDataSchemas(node: EditorNodeType, region: EditorNodeType) {
     const jsonschema: any = {
       $id: 'formItems',
@@ -1180,7 +1156,7 @@ export class FormPlugin extends BasePlugin {
           {
             schema: scopeNode.schema,
             sourceKey: 'api',
-            feat: scopeNode.schema?.feat ?? FormFeatEnum.Insert
+            feat: scopeNode.schema?.feat ?? DSFeatureEnum.Insert
           },
           target
         );

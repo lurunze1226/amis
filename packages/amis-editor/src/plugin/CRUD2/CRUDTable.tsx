@@ -108,7 +108,12 @@ export class CRUDTablePlugin extends BaseCRUDPlugin {
               : feat === DSFeatureEnum.FuzzyQuery
               ? 'headerToolbar'
               : undefined,
-          label: '简单查询',
+          label:
+            feat === DSFeatureEnum.SimpleQuery
+              ? '简单查询'
+              : feat === DSFeatureEnum.AdvancedQuery
+              ? '高级查询'
+              : '模糊查询',
           nodeId: context.id,
           feat: feat,
           builder
