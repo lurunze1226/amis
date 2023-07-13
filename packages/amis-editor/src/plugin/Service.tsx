@@ -229,7 +229,10 @@ export class ServicePlugin extends BasePlugin {
           if (value !== oldValue) {
             const data = form.data;
             Object.keys(data).forEach(key => {
-              if (key.endsWith('Fields') || key.toLowerCase().endsWith('api')) {
+              if (
+                key?.toLowerCase()?.endsWith('fields') ||
+                key?.toLowerCase().endsWith('api')
+              ) {
                 form.deleteValueByName(key);
               }
             });

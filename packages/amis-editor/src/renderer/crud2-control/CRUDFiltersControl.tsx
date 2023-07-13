@@ -130,7 +130,7 @@ export class CRUDFiltersControl extends React.Component<
     const CRUDNode = store.getNodeById(nodeId);
     const CRUDSchema = CRUDNode?.schema;
     const CRUDSchemaID = CRUDSchema?.schema?.id;
-    const config = builder.guessCRUDScaffoldConfig({schema: CRUDSchema});
+    const config = await builder.guessCRUDScaffoldConfig({schema: CRUDSchema});
     const filterSchema = cloneDeep(
       Array.isArray(CRUDNode?.schema.filter)
         ? CRUDNode?.schema.filter.find(

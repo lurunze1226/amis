@@ -58,16 +58,17 @@ export class CRUDListPlugin extends BaseCRUDPlugin {
 
   /** 非实体数据源走默认构建 */
   panelBodyCreator = (context: BuildPanelEventContext) => {
-    const baseCRUDEditorPanel = this.baseCRUDPanelBody(context, {
+    /** 先写入动态控件 */
+    this.dynamicControls = {
       /** 列配置 */
-      columns: this.renderColumnsControl,
+      columns: context => this.renderColumnsControl(context),
       /** 工具栏配置 */
-      toolbar: this.renderToolbarCollapse,
+      toolbar: context => this.renderToolbarCollapse(context),
       /** 搜索栏 */
-      filters: this.renderFiltersCollapse
-    });
+      filters: context => this.renderFiltersCollapse(context)
+    };
 
-    return baseCRUDEditorPanel;
+    return this.baseCRUDPanelBody(context);
   };
 
   @autobind
@@ -121,7 +122,12 @@ export class CRUDListPlugin extends BaseCRUDPlugin {
               : feat === DSFeatureEnum.FuzzyQuery
               ? 'headerToolbar'
               : undefined,
-          label: '简单查询',
+          label:
+            feat === DSFeatureEnum.SimpleQuery
+              ? '简单查询'
+              : feat === DSFeatureEnum.AdvancedQuery
+              ? '高级查询'
+              : '模糊查询',
           nodeId: context.id,
           feat: feat,
           builder

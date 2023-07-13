@@ -10,9 +10,8 @@ import cloneDeep from 'lodash/cloneDeep';
 import isEmpty from 'lodash/isEmpty';
 import uniqBy from 'lodash/uniqBy';
 import get from 'lodash/get';
-import omit from 'lodash/omit';
-import intersection from 'lodash/intersection';
-import {toast} from 'amis';
+import uniq from 'lodash/uniq';
+import {toast, isObject} from 'amis';
 import {
   BasePlugin,
   ScaffoldForm,
@@ -25,13 +24,7 @@ import {
   RendererPluginEvent,
   RendererPluginAction
 } from 'amis-editor-core';
-import {
-  DSBuilder,
-  DSBuilderManager,
-  DSFeatureEnum,
-  DSFeature,
-  DSFeatureType
-} from '../../builder';
+import {DSBuilderManager, DSFeatureEnum, DSFeatureType} from '../../builder';
 import {
   getEventControlConfig,
   getArgsWrapper
@@ -41,11 +34,11 @@ import {deepRemove, findObj, findSchema} from './utils';
 import {ToolsConfig, FiltersConfig, OperatorsConfig} from './constants';
 import {FieldSetting} from '../../renderer/FieldSetting';
 
-import type {IFormItemStore, IFormStore, BaseApiObject} from 'amis-core';
+import type {IFormItemStore, IFormStore} from 'amis-core';
 import type {CRUDScaffoldConfig} from '../../builder/type';
 
 /** 需要动态控制的属性 */
-export type CRUDDynamicControls = Partial<
+export type CRUD2DynamicControls = Partial<
   Record<
     'columns' | 'toolbar' | 'filters',
     | Record<string, any>
@@ -176,13 +169,17 @@ export class BaseCRUDPlugin extends BasePlugin {
               onChange: (value: any, oldValue: any, model: any, form: any) => {
                 if (value !== oldValue) {
                   const data = form.data;
+
                   Object.keys(data).forEach(key => {
-                    if (key.endsWith('Fields') || key.endsWith('api')) {
+                    if (
+                      key?.toLowerCase()?.endsWith('fields') ||
+                      key?.toLowerCase()?.endsWith('api')
+                    ) {
                       form.deleteValueByName(key);
                     }
                   });
                   form.deleteValueByName('__fields');
-                  form.deleteValueByName('listApi');
+                  form.deleteValueByName('__relations');
                 }
                 return value;
               }
@@ -192,12 +189,15 @@ export class BaseCRUDPlugin extends BasePlugin {
               (builder, builderKey) => {
                 return {
                   type: 'container',
-                  visibleOn: `dsType == null || dsType === '${builderKey}'`,
+                  visibleOn: `!data.dsType || data.dsType === '${builderKey}'`,
                   body: flattenDeep([
                     builder.makeSourceSettingForm({
                       feat: 'List',
                       renderer: 'crud',
-                      inScaffold: true
+                      inScaffold: true,
+                      sourceSettings: {
+                        userOrders: true
+                      }
                     }),
                     builder.makeFieldsSettingForm({
                       feat: 'List',
@@ -294,21 +294,23 @@ export class BaseCRUDPlugin extends BasePlugin {
           return scaffold;
         }
 
-        const feats = [
-          DSFeatureEnum.List,
-          ...(config.tools ?? []),
-          ...(config.filters ?? []),
-          ...(config.operators ?? [])
-        ].filter(Boolean);
-
-        return builder.buildCRUDSchema({
-          feats,
+        const schema = await builder.buildCRUDSchema({
+          feats: uniq(
+            [
+              DSFeatureEnum.List as 'List',
+              ...(config.tools ?? []),
+              ...(config.filters ?? []),
+              ...(config.operators ?? [])
+            ].filter(Boolean)
+          ),
           renderer: 'crud',
           inScaffold: true,
           entitySource: config?.entitySource,
           fallbackSchema: scaffold,
           scaffoldConfig: config
         });
+
+        return schema;
       },
       validate: (data: CRUDScaffoldConfig, form: IFormStore) => {
         const feat = 'List';
@@ -316,6 +318,10 @@ export class BaseCRUDPlugin extends BasePlugin {
         const featValue = builder?.getFeatValueByKey(feat);
         const fieldsKey = `${featValue}Fields`;
         const errors: Record<string, string> = {};
+
+        if (data?.dsType === 'model-entity') {
+          return errors;
+        }
 
         const fieldErrors = FieldSetting.validator(form.data[fieldsKey]);
 
@@ -328,6 +334,7 @@ export class BaseCRUDPlugin extends BasePlugin {
     };
   }
 
+  /** 各场景字段设置 Schema */
   getScaffoldFeatureTab() {
     const tabs: {title: string; icon: string; body: any; visibleOn: string}[] =
       [];
@@ -346,75 +353,100 @@ export class BaseCRUDPlugin extends BasePlugin {
       FiltersConfig,
       OperatorsConfig
     ].forEach(group => {
-      group.options.forEach((item, index) => {
-        this.dsManager.buildCollectionFromBuilders((builder, builderKey) => {
-          if (!builder.features.includes(item.value as DSFeatureType)) {
-            return null;
-          }
+      group.options.forEach(
+        (
+          item: {value: DSFeatureType; label: string; icon: string},
+          index: number
+        ) => {
+          this.dsManager.buildCollectionFromBuilders((builder, builderKey) => {
+            if (!builder.features.includes(item.value)) {
+              return null;
+            }
 
-          const tabContent = [
-            ...(item.value === 'Edit'
-              ? /** CRUD的编辑单条需要初始化接口 */ builder.makeSourceSettingForm(
-                  {
-                    feat: item.value,
-                    renderer: 'crud',
-                    inScaffold: true,
-                    sourceKey: 'initApi'
-                  }
-                )
-              : !['List', 'SimpleQuery'].includes(item.value)
-              ? builder.makeSourceSettingForm({
-                  feat: item.value as Extract<
-                    DSFeatureType,
-                    'List' | 'SimpleQuery'
-                  >,
-                  renderer: 'crud',
-                  inScaffold: true
-                })
-              : []),
-            ...builder.makeFieldsSettingForm({
-              feat: item.value as DSFeatureType,
-              renderer: 'crud',
-              inScaffold: true,
-              fieldSettings: {
-                renderLabel: false
-              }
-            })
-          ];
+            const tabContent =
+              builderKey === 'model-entity'
+                ? [
+                    ...builder.makeFieldsSettingForm({
+                      feat: item.value,
+                      renderer: 'crud',
+                      inScaffold: true
+                    })
+                  ]
+                : [
+                    ...(item.value === 'Edit'
+                      ? /** CRUD的编辑单条需要初始化接口 */ builder.makeSourceSettingForm(
+                          {
+                            feat: item.value,
+                            renderer: 'crud',
+                            inScaffold: true,
+                            sourceKey: 'initApi'
+                          }
+                        )
+                      : !['List', 'SimpleQuery'].includes(item.value)
+                      ? builder.makeSourceSettingForm({
+                          feat: item.value,
+                          renderer: 'crud',
+                          inScaffold: true
+                        })
+                      : []),
+                    ...builder.makeFieldsSettingForm({
+                      feat: item.value,
+                      renderer: 'crud',
+                      inScaffold: true,
+                      fieldSettings: {
+                        renderLabel: false
+                      }
+                    })
+                  ];
 
-          if (!tabContent || tabContent.length === 0) {
-            return null;
-          }
+            if (!tabContent || tabContent.length === 0) {
+              return null;
+            }
 
-          const groupName = group.groupName;
-          const extraVisibleOn = groupName
-            ? `data["${groupName}"] && ~data['${groupName}'].indexOf('${item.value}')`
-            : true;
+            const groupName = group.groupName;
+            const extraVisibleOn = groupName
+              ? `data["${groupName}"] && ~data['${groupName}'].indexOf('${item.value}')`
+              : true;
 
-          tabs.push({
-            title: item.label,
-            icon: item.icon,
-            visibleOn: `(!data.dsType || data.dsType === '${builderKey}') && ${extraVisibleOn}`,
-            body: tabContent
-              .filter(Boolean)
-              .map(formItem => ({...formItem, mode: 'normal'}))
+            tabs.push({
+              title: item.label,
+              icon: item.icon,
+              visibleOn: `(!data.dsType || data.dsType === '${builderKey}') && ${extraVisibleOn}`,
+              body: tabContent
+                .filter(Boolean)
+                .map(formItem => ({...formItem, mode: 'normal'}))
+            });
+
+            return;
           });
-
-          return;
-        });
-      });
+        }
+      );
     });
 
     return tabs;
   }
 
+  protected _dynamicControls: CRUD2DynamicControls = {};
+
+  /** 需要动态控制的控件 */
+  get dynamicControls() {
+    return this._dynamicControls;
+  }
+
+  set dynamicControls(controls: CRUD2DynamicControls) {
+    if (!controls || !isObject(controls)) {
+      throw new Error(
+        '[amis-editor][CRUD2Plugin] dynamicControls的值必须是一个对象'
+      );
+    }
+
+    this._dynamicControls = {...this._dynamicControls, ...controls};
+  }
+
   /** CRUD公共配置面板 */
-  baseCRUDPanelBody = (
-    context: BuildPanelEventContext,
-    dynamicControls: CRUDDynamicControls = {}
-  ) => {
+  baseCRUDPanelBody = (context: BuildPanelEventContext) => {
     return getSchemaTpl('tabs', [
-      this.renderPropsTab(context, dynamicControls),
+      this.renderPropsTab(context),
       this.renderStylesTab(context),
       this.renderEventTab(context)
     ]);
@@ -422,13 +454,9 @@ export class BaseCRUDPlugin extends BasePlugin {
 
   /** 拆解一下 CURD 的基础面板配置，方便不同 mode 下模块化组合 */
   /** 属性面板 */
-  renderPropsTab(
-    context: BuildPanelEventContext,
-    dynamicControls: CRUDDynamicControls = {}
-  ) {
-    const builder = this.dsManager.getBuilderBySchema(context.node.schema);
+  renderPropsTab(context: BuildPanelEventContext) {
     /** 动态加载的配置集合 */
-    const dc = dynamicControls || {};
+    const dc = this.dynamicControls;
 
     return {
       title: '属性',
@@ -468,31 +496,24 @@ export class BaseCRUDPlugin extends BasePlugin {
           type: 'select',
           label: '数据源',
           onChange: (
-            value: any,
-            oldValue: any,
+            value: string,
+            oldValue: string,
             model: IFormItemStore,
             form: IFormStore
           ) => {
             if (value !== oldValue) {
               const data = form.data;
+
               Object.keys(data).forEach(key => {
-                if (key.endsWith('Fields') || key.endsWith('api')) {
+                if (
+                  key?.toLowerCase()?.endsWith('fields') ||
+                  key?.toLowerCase()?.endsWith('api')
+                ) {
                   form.deleteValueByName(key);
                 }
               });
               form.deleteValueByName('__fields');
               form.deleteValueByName('__relations');
-              form.setValueByName('$$m', {});
-
-              form.setValueByName(
-                'api',
-                value === 'model-entity'
-                  ? {
-                      action: 'list',
-                      scene: 'list'
-                    }
-                  : ''
-              );
             }
             return value;
           }
@@ -501,11 +522,14 @@ export class BaseCRUDPlugin extends BasePlugin {
         ...this.dsManager.buildCollectionFromBuilders((builder, builderKey) => {
           return {
             type: 'container',
-            visibleOn: `dsType == null || dsType === '${builderKey}'`,
+            visibleOn: `data.dsType == null || data.dsType === '${builderKey}'`,
             body: builder.makeSourceSettingForm({
               feat: 'List',
               renderer: 'crud',
-              inScaffold: false
+              inScaffold: false,
+              sourceSettings: {
+                userOrders: true
+              }
             }),
             /** 因为会使用 container 包裹，所以加一个 margin-bottom */
             className: 'mb-3'
@@ -686,10 +710,7 @@ export class BaseCRUDPlugin extends BasePlugin {
   }
 
   /** 外观面板 */
-  renderStylesTab(
-    context: BuildPanelEventContext,
-    dynamicControls: CRUDDynamicControls = {}
-  ) {
+  renderStylesTab(context: BuildPanelEventContext) {
     return {
       title: '外观',
       className: 'p-none',
@@ -718,10 +739,7 @@ export class BaseCRUDPlugin extends BasePlugin {
   }
 
   /** 事件面板 */
-  renderEventTab(
-    context: BuildPanelEventContext,
-    dynamicControls: CRUDDynamicControls = {}
-  ) {
+  renderEventTab(context: BuildPanelEventContext) {
     return {
       title: '事件',
       className: 'p-none',

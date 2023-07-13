@@ -63,7 +63,7 @@ export class ApiDSBuilder extends DSBuilder<
 > {
   static key = 'api';
 
-  readonly isDefault = true;
+  isDefault = true;
 
   readonly name: string = 'API接口';
 
@@ -80,13 +80,17 @@ export class ApiDSBuilder extends DSBuilder<
     'SimpleQuery'
   ] as DSFeatureType[];
 
+  /**
+   * 获取键值。
+   */
+  get key() {
+    return (this.constructor as typeof ApiDSBuilder).key;
+  }
+
   match(schema: any) {
     const apiSchema = schema?.api;
 
-    if (
-      schema?.dsType === ApiDSBuilder.key ||
-      apiSchema?.sourceType === ApiDSBuilder.key
-    ) {
+    if (schema?.dsType === this.key || apiSchema?.sourceType === this.key) {
       return true;
     }
 
@@ -96,7 +100,7 @@ export class ApiDSBuilder extends DSBuilder<
      *  */
     if (
       isObject(apiSchema) &&
-      (apiSchema.jsonql != null || apiSchema.strategy !== null)
+      (apiSchema.jsonql != null || apiSchema.strategy != null)
     ) {
       return false;
     }
@@ -118,7 +122,7 @@ export class ApiDSBuilder extends DSBuilder<
   async getAvailableContextFields<T extends DSRendererType>(
     options: ApiDSBuilderOptions<T>,
     target: EditorNodeType
-  ) {
+  ): Promise<any> {
     return;
   }
 
@@ -267,9 +271,7 @@ export class ApiDSBuilder extends DSBuilder<
     const schemaFilter = manager?.store?.schemaFilter;
 
     if (schemaFilter) {
-      api = schemaFilter({
-        api
-      }).api;
+      api = schemaFilter({api}).api;
     }
 
     const result = await env?.fetcher(api, ctx);
@@ -442,6 +444,25 @@ export class ApiDSBuilder extends DSBuilder<
     return schema;
   }
 
+  /**
+   * 为输入类控件追加的初始化Schema配置，避免某些类型组件渲染报错
+   */
+  appendSchema2InputControl(inputType: string) {
+    if (inputType === 'combo') {
+      return {
+        items: [
+          {
+            type: 'input-text',
+            name: 'input-text',
+            placeholder: '文本'
+          }
+        ]
+      };
+    } else {
+      return {};
+    }
+  }
+
   buildBaseFormSchema(
     options: ApiDSBuilderOptions<DSRendererType>,
     schemaPatch?: GenericSchema
@@ -463,12 +484,16 @@ export class ApiDSBuilder extends DSBuilder<
       type: 'form',
       title: '表单',
       mode: 'horizontal',
-      dsType: ApiDSBuilder.key,
+      dsType: this.key,
       feat: feat,
-      body: fields.map(f => ({
-        ...pick(f, ['name', 'label']),
-        type: f.inputType ?? 'input-text'
-      })),
+      body: fields.map(f => {
+        const type = f.inputType ?? 'input-text';
+        return {
+          ...pick(f, ['name', 'label']),
+          type,
+          ...this.appendSchema2InputControl(type)
+        };
+      }),
       api: apiSchema,
       ...(renderer === 'form'
         ? {
@@ -787,13 +812,18 @@ export class ApiDSBuilder extends DSBuilder<
       columnCount: 3,
       clearValueOnHidden: true,
       behavior: ['SimpleQuery'],
-      body: fields.map(f => ({
-        ...pick(f, ['name', 'label']),
-        type: f.inputType ?? 'input-text',
-        size: 'full',
-        required: false,
-        behavior: 'SimpleQuery'
-      })),
+      body: fields.map(f => {
+        const type = f.inputType ?? 'input-text';
+
+        return {
+          ...pick(f, ['name', 'label']),
+          type,
+          size: 'full',
+          required: false,
+          behavior: 'SimpleQuery',
+          ...this.appendSchema2InputControl(type)
+        };
+      }),
       actions: [
         {type: 'reset', label: '重置'},
         {type: 'submit', label: '查询', level: 'primary'}
@@ -938,15 +968,15 @@ export class ApiDSBuilder extends DSBuilder<
     );
   }
 
-  guessFormScaffoldConfig(options: {
+  guessFormScaffoldConfig<FormScaffoldConfig>(options: {
     schema: GenericSchema;
     [propName: string]: any;
-  }): FormScaffoldConfig {
+  }) {
     const {schema} = options || {};
-    const dsType = ApiDSBuilder.key;
+    const dsType = this.key;
 
     if (!schema.dsType || schema.dsType !== dsType) {
-      return {dsType};
+      return {dsType} as FormScaffoldConfig;
     }
 
     const feat = schema?.feat ?? 'Insert';
@@ -1004,20 +1034,20 @@ export class ApiDSBuilder extends DSBuilder<
       __pristineSchema: omit(JSONPipeOut(schema), [
         ...Object.values(DSFeature).map(item => `${item.value}Fields`)
       ])
-    };
+    } as FormScaffoldConfig;
 
     return config;
   }
 
-  guessCRUDScaffoldConfig(options: {
+  guessCRUDScaffoldConfig<CRUDScaffoldConfig>(options: {
     schema: GenericSchema;
     [propName: string]: any;
-  }): CRUDScaffoldConfig {
+  }) {
     const {schema} = options || {};
-    const dsType = ApiDSBuilder.key;
+    const dsType = this.key;
 
     if (!schema.dsType || schema.dsType !== dsType) {
-      return {dsType, primaryField: 'id'};
+      return {dsType, primaryField: 'id'} as CRUDScaffoldConfig;
     }
 
     const listFields = (
@@ -1125,19 +1155,19 @@ export class ApiDSBuilder extends DSBuilder<
         DSFeatureEnum.Insert,
         DSFeatureEnum.BulkDelete,
         DSFeatureEnum.BulkEdit
-      ]) as CRUDScaffoldConfig['tools'],
+      ]) as DSFeatureType[],
       /** 数据操作 */
       operators: intersection(finalFeats, [
         DSFeatureEnum.View,
         DSFeatureEnum.Edit,
         DSFeatureEnum.Delete
-      ]) as CRUDScaffoldConfig['operators'],
+      ]) as DSFeatureType[],
       /** 条件查询 */
       filters: intersection(finalFeats, [
         DSFeatureEnum.FuzzyQuery,
         DSFeatureEnum.SimpleQuery,
         DSFeatureEnum.AdvancedQuery
-      ]) as CRUDScaffoldConfig['filters'],
+      ]) as DSFeatureType[],
       listFields,
       listApi: JSONPipeOut(schema?.api),
       viewFields,
@@ -1157,7 +1187,7 @@ export class ApiDSBuilder extends DSBuilder<
       ])
     };
 
-    return config;
+    return config as CRUDScaffoldConfig;
   }
 
   buildCRUDSchema(options: ApiDSBuilderOptions<'crud'>) {
@@ -1180,7 +1210,7 @@ export class ApiDSBuilder extends DSBuilder<
       id,
       type: 'crud2',
       mode: 'table2',
-      dsType: ApiDSBuilder.key,
+      dsType: this.key,
       syncLocation: true,
       multiple: multiple,
       /** 通过脚手架创建的单条操作入口都在操作列中，所以rowSelection暂时不需要radio */
@@ -1222,7 +1252,7 @@ export class ApiDSBuilder extends DSBuilder<
     const baseSchema = {
       ...formSchema,
       ...(feat === 'Edit' ? {initApi} : {}),
-      dsType: ApiDSBuilder.key
+      dsType: this.key
     };
 
     if (__pristineSchema && isObject(__pristineSchema)) {

@@ -555,6 +555,11 @@ export class FieldSetting extends React.Component<
                                       value: 'mapping',
                                       label: '映射',
                                       typeKey: 'value'
+                                    },
+                                    {
+                                      value: 'list',
+                                      label: '列表',
+                                      typeKey: 'value'
                                     }
                                   ]}
                                 />

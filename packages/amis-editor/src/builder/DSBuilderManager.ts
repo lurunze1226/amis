@@ -32,12 +32,12 @@ export class DSBuilderManager {
   getBuilderBySchema(schema: any) {
     let builder: DSBuilderInterface | undefined;
 
-    this.builders.forEach(value => {
+    for (let [key, value] of Array.from(this.builders.entries())) {
       if (value.match(schema)) {
         builder = value;
-        return;
+        break;
       }
-    });
+    }
 
     return builder ? builder : this.getDefaultBuilder();
   }

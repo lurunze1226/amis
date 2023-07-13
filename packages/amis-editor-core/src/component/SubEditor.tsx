@@ -161,6 +161,8 @@ export class SubEditor extends React.Component<SubEditorProps> {
                     ref={store.subEditorRef}
                     onChange={onChange}
                     data={store.subEditorContext?.data}
+                    hostNode={store.subEditorContext?.hostNode}
+                    parentEditorManager={manager}
                     superEditorData={superEditorData}
                     schemaFilter={manager.config.schemaFilter}
                     theme={manager.env.theme}

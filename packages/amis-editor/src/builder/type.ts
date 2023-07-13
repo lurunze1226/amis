@@ -24,7 +24,7 @@ export type DSFeatureType = keyof typeof DSFeature;
 
 export type GenericSchema = Record<string, any>;
 
-export type DSRendererType = 'form' | 'crud';
+export type DSRendererType = 'form' | 'crud' | 'service';
 
 export interface ScaffoldField {
   /** 标题 */

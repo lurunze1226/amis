@@ -2052,6 +2052,12 @@ export class EditorManager {
     }
 
     if (!scope) {
+      if (!from && this.store.isSubEditor) {
+        return this.config?.parentEditorManager?.getAvailableContextFields?.(
+          node
+        );
+      }
+
       return from?.info.plugin.getAvailableContextFields?.(from, node);
     }
 

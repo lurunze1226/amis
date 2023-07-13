@@ -39,6 +39,10 @@ export interface EditorProps extends PluginEventListener {
   amisDocHost?: string;
   superEditorData?: any;
   withSuperDataSchema?: boolean;
+  /** 当前 Editor 为 SubEditor 时触发的宿主节点 */
+  hostNode?: EditorNodeType;
+  /** 父编辑器的 Manager */
+  parentEditorManager?: EditorManager;
   dataBindingChange?: (
     value: string,
     data: any,

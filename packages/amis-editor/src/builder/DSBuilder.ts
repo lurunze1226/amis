@@ -49,7 +49,7 @@ export interface DSBuilderInterface<
   readonly features: DSFeatureType[];
 
   /** 是否为默认 */
-  readonly isDefault?: boolean;
+  isDefault?: boolean;
 
   /** 是否默认隐藏 */
   defaultHidden?: boolean;
@@ -112,16 +112,16 @@ export interface DSBuilderInterface<
   buildFormSchema(options: T): any;
 
   /** 基于 schema 还原CRUD脚手架配置 */
-  guessCRUDScaffoldConfig(options: {
+  guessCRUDScaffoldConfig<T extends CRUDScaffoldConfig<any, any>>(options: {
     schema: GenericSchema;
     [propName: string]: any;
-  }): CRUDScaffoldConfig;
+  }): Promise<T> | T;
 
   /** 基于 schema 还原Form脚手架配置 */
-  guessFormScaffoldConfig(options: {
+  guessFormScaffoldConfig<T extends FormScaffoldConfig<any, any>>(options: {
     schema: GenericSchema;
     [propName: string]: any;
-  }): FormScaffoldConfig;
+  }): Promise<T> | T;
 
   /** 重新构建 API 配置 */
   buildApiSchema(options: T): Promise<any>;
@@ -197,16 +197,14 @@ export abstract class DSBuilder<T extends DSBuilderBaseOptions>
   abstract buildFormSchema(options: T): any;
 
   /** 基于 schema 还原CRUD脚手架配置 */
-  abstract guessCRUDScaffoldConfig(options: {
-    schema: GenericSchema;
-    [propName: string]: any;
-  }): CRUDScaffoldConfig;
+  abstract guessCRUDScaffoldConfig<
+    T extends CRUDScaffoldConfig<any, any>
+  >(options: {schema: GenericSchema; [propName: string]: any}): Promise<T> | T;
 
   /** 基于 schema 还原Form脚手架配置 */
-  abstract guessFormScaffoldConfig(options: {
-    schema: GenericSchema;
-    [propName: string]: any;
-  }): FormScaffoldConfig;
+  abstract guessFormScaffoldConfig<
+    T extends FormScaffoldConfig<any, any>
+  >(options: {schema: GenericSchema; [propName: string]: any}): Promise<T> | T;
 
   abstract buildApiSchema(options: T): Promise<any>;
 }

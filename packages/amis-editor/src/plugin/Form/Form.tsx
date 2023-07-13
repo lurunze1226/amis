@@ -394,16 +394,25 @@ export class FormPlugin extends BasePlugin {
             form: IFormStore
           ) => {
             if (value !== oldValue) {
+              const data = form.data;
+
+              Object.keys(data).forEach(key => {
+                if (
+                  /^(insert|edit|bulkEdit)Fields$/i.test(key) ||
+                  /^(insert|edit|bulkEdit)Api$/i.test(key)
+                ) {
+                  form.deleteValueByName(key);
+                }
+              });
+              form.deleteValueByName('__fields');
+              form.deleteValueByName('__relations');
               form.setValues({
                 dsType: this.dsManager.getDefaultBuilderKey(),
                 initApi:
                   DSFeatureEnum.Insert === value ||
                   DSFeatureEnum.BulkEdit === value
                     ? undefined
-                    : '',
-                insertApi: undefined,
-                editApi: undefined,
-                bulkEditApi: undefined
+                    : ''
               });
             }
           }
@@ -411,18 +420,33 @@ export class FormPlugin extends BasePlugin {
         /** 数据源选择器 */
         this.dsManager.getDSSelectorSchema({
           onChange: (
-            value: any,
-            oldValue: any,
+            value: string,
+            oldValue: string,
             model: IFormItemStore,
             form: IFormStore
           ) => {
-            const data = form.data;
-            Object.keys(data).forEach(key => {
-              if (key.endsWith('Fields') || key.endsWith('api')) {
-                form.deleteValueByName(key);
-              }
-            });
-            form.deleteValueByName('__fields');
+            if (value !== oldValue) {
+              const data = form.data;
+
+              Object.keys(data).forEach(key => {
+                if (
+                  /^(insert|edit|bulkEdit)Fields$/i.test(key) ||
+                  /^(insert|edit|bulkEdit)Api$/i.test(key)
+                ) {
+                  form.deleteValueByName(key);
+                }
+              });
+              form.deleteValueByName('__fields');
+              form.deleteValueByName('__relations');
+              form.setValues({
+                initApi:
+                  DSFeatureEnum.Insert === value ||
+                  DSFeatureEnum.BulkEdit === value
+                    ? undefined
+                    : ''
+              });
+            }
+
             return value;
           }
         }),
@@ -672,7 +696,6 @@ export class FormPlugin extends BasePlugin {
                         }
 
                         const api = form.data?.api || form.data?.initApi;
-
                         let dsType = 'api';
 
                         if (!api) {
@@ -694,36 +717,31 @@ export class FormPlugin extends BasePlugin {
                         return dsType;
                       },
                       onChange: (
-                        value: any,
-                        oldValue: any,
-                        model: any,
-                        form: any
+                        value: string,
+                        oldValue: string,
+                        model: IFormItemStore,
+                        form: IFormStore
                       ) => {
-                        const data = form.data;
-                        Object.keys(data).forEach(key => {
-                          if (key.endsWith('Fields') || key.endsWith('api')) {
-                            form.deleteValueByName(key);
-                          }
-                        });
-                        form.deleteValueByName('__fields');
-                        form.deleteValueByName('initApi');
-                        form.deleteValueByName('api');
+                        if (value !== oldValue) {
+                          const data = form.data;
 
-                        form.setValueByName(
-                          'api',
-                          value === 'model-entity'
-                            ? {
-                                action:
-                                  data?.feat === DSFeatureEnum.Insert
-                                    ? 'create'
-                                    : 'update',
-                                limit: 'piece'
-                              }
-                            : ''
-                        );
+                          Object.keys(data).forEach(key => {
+                            if (
+                              /^(insert|edit|bulkEdit)Fields$/i.test(key) ||
+                              /^(insert|edit|bulkEdit)Api$/i.test(key)
+                            ) {
+                              form.deleteValueByName(key);
+                            }
+                          });
+                          form.deleteValueByName('__fields');
+                          form.deleteValueByName('__relations');
+                          form.deleteValueByName('initApi');
+                          form.deleteValueByName('api');
+                        }
                         return value;
                       }
                     }),
+                    /** 数据源配置 */
                     ...flatten(
                       this.Features.map(feat =>
                         this.dsManager.buildCollectionFromBuilders(
@@ -733,8 +751,8 @@ export class FormPlugin extends BasePlugin {
                             visibleOn: `data.feat === '${feat.value}' && (data.dsType === '${builderKey}' || (!data.dsType && ${index} === 0))`,
                             body: flatten([
                               builder.makeSourceSettingForm({
-                                renderer: 'form',
                                 feat: feat.value,
+                                renderer: 'form',
                                 inScaffold: false,
                                 sourceSettings: {
                                   renderLabel: true,

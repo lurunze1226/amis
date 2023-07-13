@@ -1,5 +1,6 @@
 import React from 'react';
-import {setVariable, someTree, promisify, isObject} from 'amis-core';
+import {Icon, Button} from 'amis';
+import {setVariable, someTree, isObject} from 'amis-core';
 import {
   BasePlugin,
   BaseEventContext,
@@ -21,7 +22,6 @@ import {
   RendererPluginEvent,
   BuildPanelEventContext
 } from 'amis-editor-core';
-import {Button} from 'amis';
 import {DSBuilderManager} from '../builder/DSBuilderManager';
 import {
   getEventControlConfig,
