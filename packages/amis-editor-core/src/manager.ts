@@ -3,6 +3,7 @@
  * 编辑器非 UI 相关的东西应该放在这。
  */
 import {reaction} from 'mobx';
+import {isAlive} from 'mobx-state-tree';
 import {parse, stringify} from 'json-ast-comments';
 import debounce from 'lodash/debounce';
 import findIndex from 'lodash/findIndex';
@@ -228,6 +229,37 @@ export class EditorManager {
     this.hackIn = hackIn;
     // 自动加载预先注册的自定义组件
     autoPreRegisterEditorCustomPlugins();
+
+    /** 在顶层对外部注册的Plugin和builtInPlugins合并去重 */
+    const externalPlugins = (config?.plugins || []).forEach(external => {
+      if (
+        Array.isArray(external) ||
+        !external.priority ||
+        !Number.isInteger(external.priority)
+      ) {
+        return;
+      }
+
+      const idx = builtInPlugins.findIndex(
+        builtIn =>
+          !Array.isArray(builtIn) &&
+          !Array.isArray(external) &&
+          builtIn.id === external.id &&
+          builtIn?.prototype instanceof BasePlugin
+      );
+
+      if (~idx) {
+        const current = builtInPlugins[idx] as PluginClass;
+        const currentPriority =
+          current.priority && Number.isInteger(current.priority)
+            ? current.priority
+            : 0;
+        /** 同ID Plugin根据优先级决定是否替换掉Builtin中的Plugin */
+        if (external.priority > currentPriority) {
+          builtInPlugins.splice(idx, 1);
+        }
+      }
+    });
 
     this.plugins = (config.disableBultinPlugin ? [] : builtInPlugins) // 页面设计器注册的插件列表
       .concat(this.normalizeScene(config?.plugins))
@@ -1701,7 +1733,7 @@ export class EditorManager {
           patchList(node.uniqueChildren);
         }
 
-        if (!node.isRegion) {
+        if (isAlive(node) && !node.isRegion) {
           node.patch(this.store, force);
         }
       });
@@ -1845,7 +1877,6 @@ export class EditorManager {
       return;
     }
     const plugin = node.info.plugin!;
-
     const store = this.store;
     const context: PopOverFormContext = {
       node,
@@ -1964,7 +1995,7 @@ export class EditorManager {
   /**
    * 获取可用上下文待绑定字段
    */
-  async getAvailableContextFields(node: EditorNodeType) {
+  async getAvailableContextFields(node: EditorNodeType): Promise<any> {
     if (!node) {
       return;
     }
@@ -1993,6 +2024,10 @@ export class EditorManager {
     }
 
     if (!scope) {
+      /** 如果在子编辑器中，继续去上层编辑器查找，不过这里可能受限于当前层的数据映射 */
+      if (!from && this.store.isSubEditor) {
+        return this.config?.getAvaiableContextFields?.(node);
+      }
       return from?.info.plugin.getAvailableContextFields?.(from, node);
     }
 
