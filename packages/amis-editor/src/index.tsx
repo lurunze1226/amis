@@ -92,6 +92,7 @@ import './plugin/Tpl'; // 文字
 import './plugin/Icon'; // 图标
 import './plugin/Link'; // 链接
 import './plugin/List'; // 列表
+import './plugin/List2'; // 列表2
 import './plugin/Mapping'; // 映射
 import './plugin/Avatar'; // 头像
 import './plugin/Card'; // 卡片
