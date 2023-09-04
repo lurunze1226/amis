@@ -847,7 +847,9 @@ export default class Form extends React.Component<FormProps, object> {
         this.hooks['validate'] || [],
         forceValidate,
         throwErrors,
-        __(messages && messages.validateFailed)
+        typeof messages?.validateFailed === 'string'
+          ? __(filter(messages.validateFailed, store.data))
+          : undefined
       )
       .then((result: boolean) => {
         if (result) {
@@ -892,7 +894,9 @@ export default class Form extends React.Component<FormProps, object> {
     return store.submit(
       fn,
       this.hooks['validate'] || [],
-      __(messages && messages.validateFailed),
+      typeof messages?.validateFailed === 'string'
+        ? __(filter(messages.validateFailed, store.data))
+        : undefined,
       validateErrCb,
       throwErrors
     );
@@ -1000,26 +1004,25 @@ export default class Form extends React.Component<FormProps, object> {
 
   handleBulkChange(values: Object, submit: boolean) {
     const {onChange, store, formLazyChange} = this.props;
+    store.setValues(values);
+    // store.updateData(values);
 
-    store.updateData(values);
+    // store.items.forEach(formItem => {
+    //   const updatedValue = getVariable(values, formItem.name, false);
 
-    store.items.forEach(formItem => {
-      const updatedValue = getVariable(values, formItem.name, false);
-
-      if (updatedValue !== undefined) {
-        // 更新验证状态但保留错误信息
-        formItem.reset(true);
-        // 这里需要更新value，否则提交时不会使用新的字段值校验
-        formItem.changeTmpValue(updatedValue);
-        formItem.validateOnChange && formItem.validate(values);
-      }
-    });
-
+    //   if (updatedValue !== undefined) {
+    //     // 更新验证状态但保留错误信息
+    //     formItem.reset(true);
+    //     // 这里需要更新value，否则提交时不会使用新的字段值校验
+    //     formItem.changeTmpValue(updatedValue);
+    //     formItem.validateOnChange && formItem.validate(values);
+    //   }
+    // });
     (formLazyChange === false ? this.emitChange : this.lazyEmitChange)(submit);
   }
 
   handleFormSubmit(e: React.UIEvent<any>) {
-    const {preventEnterSubmit, onActionSensor} = this.props;
+    const {preventEnterSubmit, onActionSensor, close} = this.props;
 
     e.preventDefault();
     if (preventEnterSubmit) {
@@ -1029,7 +1032,8 @@ export default class Form extends React.Component<FormProps, object> {
     const sensor: any = this.handleAction(
       e,
       {
-        type: 'submit'
+        type: 'submit',
+        close
       },
       this.props.store.data
     );
@@ -1172,8 +1176,14 @@ export default class Form extends React.Component<FormProps, object> {
 
           return store
             .saveRemote(action.api || (api as Api), values, {
-              successMessage: saveSuccess,
-              errorMessage: saveFailed,
+              successMessage:
+                typeof saveSuccess === 'string'
+                  ? filter(saveSuccess, store.data)
+                  : undefined,
+              errorMessage:
+                typeof saveFailed === 'string'
+                  ? filter(saveFailed, store.data)
+                  : undefined,
               onSuccess: async (result: Payload) => {
                 // result为提交接口返回的内容
                 const dispatcher = await dispatchEvent(
@@ -1303,14 +1313,21 @@ export default class Form extends React.Component<FormProps, object> {
       if (!isEffectiveApi(action.api)) {
         return env.alert(__(`当 actionType 为 ajax 时，请设置 api 属性`));
       }
+      let successMsg =
+        (action.messages && action.messages.success) || saveSuccess;
+      let failMsg = (action.messages && action.messages.failed) || saveFailed;
 
       return store
         .saveRemote(action.api as Api, data, {
           successMessage: __(
-            (action.messages && action.messages.success) || saveSuccess
+            typeof successMsg === 'string'
+              ? filter(successMsg, store.data)
+              : undefined
           ),
           errorMessage: __(
-            (action.messages && action.messages.failed) || saveFailed
+            typeof failMsg === 'string'
+              ? filter(failMsg, store.data)
+              : undefined
           )
         })
         .then(async response => {
@@ -1638,7 +1655,8 @@ export default class Form extends React.Component<FormProps, object> {
       dispatchEvent,
       labelAlign,
       labelWidth,
-      static: isStatic
+      static: isStatic,
+      canAccessSuperData
     } = props;
 
     const subProps = {
@@ -1662,13 +1680,6 @@ export default class Form extends React.Component<FormProps, object> {
         disabled ||
         (control as Schema).disabled ||
         (form.loading ? true : undefined),
-      /**
-       * 静态展示 优先级逻辑
-       * 1. 表单子项 static: true 始终保持静态
-       * 2. 表单子项 static: false 或 不配置，跟随父表单
-       * 3. 动作控制 表单子项 时，无视配置，优先级最高
-       */
-      ...((control as Schema).static || isStatic ? {static: true} : {}),
       btnDisabled: disabled || form.loading || form.validating,
       onAction: this.handleAction,
       onQuery: this.handleQuery,
@@ -1725,7 +1736,7 @@ export default class Form extends React.Component<FormProps, object> {
 
     const padDom = repeatCount(
       columnCount && Array.isArray(body)
-        ? columnCount - (body.length % columnCount)
+        ? (columnCount - (body.length % columnCount)) % columnCount
         : 0,
       index => (
         <div

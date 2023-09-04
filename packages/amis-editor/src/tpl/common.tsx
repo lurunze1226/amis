@@ -81,6 +81,16 @@ setSchemaTpl('formItemName', {
 });
 
 setSchemaTpl(
+  'formItemExtraName',
+  getSchemaTpl('formItemName', {
+    required: false,
+    label: '结尾字段名',
+    name: 'extraName',
+    description: '配置了结尾字段名，该组件将开始和结尾存成两个字段'
+  })
+);
+
+setSchemaTpl(
   'formItemMode',
   (config: {
     // 是不是独立表单，没有可以集成的内容
@@ -1064,6 +1074,8 @@ setSchemaTpl('buttonLevel', {
   label: '按钮样式',
   type: 'select',
   name: 'level',
+  menuTpl:
+    '<div class="ae-ButtonLevel-MenuTpl"><button type="button" class="cxd-Button cxd-Button--${value} cxd-Button--size-sm cxd-Button--block">${label}</button></div>',
   options: [
     {
       label: '默认',
@@ -1690,6 +1702,5 @@ setSchemaTpl('primaryField', {
     '主键',
     '每行记录的唯一标识符，通常用于行选择、批量操作等场景。'
   ),
-  pipeIn: defaultValue('id'),
-  required: true
+  pipeIn: defaultValue('id')
 });

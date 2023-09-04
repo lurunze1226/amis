@@ -44,6 +44,7 @@ export interface SwitchMoreProps extends FormControlProps {
   bulk?: boolean; // 是否是一个综合object属性，若是，最终提交所有项覆盖到表单data，否则提交为 [name] 一项,
   onRemove?: (e: React.UIEvent<any> | void) => void;
   onClose: (e: React.UIEvent<any> | void) => void;
+  clearChildValuesOnOff?: boolean; // 关闭开关时，删除子表单字段，默认 true
   defaultData?: any; // 默认数据
   isChecked?: (options: {
     data: any;
@@ -82,6 +83,7 @@ export default class SwitchMore extends React.Component<
     | 'falseValue'
     | 'formType'
     | 'bulk'
+    | 'clearChildValuesOnOff'
     // | 'editable'
   > = {
     // btnIcon: 'pencil',
@@ -94,7 +96,8 @@ export default class SwitchMore extends React.Component<
     trueValue: true,
     falseValue: false,
     formType: 'pop',
-    bulk: true
+    bulk: true,
+    clearChildValuesOnOff: true
     // editable: true
   };
 
@@ -196,7 +199,8 @@ export default class SwitchMore extends React.Component<
       defaultData,
       name,
       trueValue,
-      falseValue
+      falseValue,
+      clearChildValuesOnOff
     } = this.props;
 
     this.setState({checked});
@@ -209,11 +213,11 @@ export default class SwitchMore extends React.Component<
         name && (data[name] = trueValue);
         onBulkChange && onBulkChange(data);
       }
-      // 取消选中后，讲所有字段重置
+      // 取消选中后，将所有字段重置
       else {
-        const values = fromPairs(
-          this.getFormItemNames().map(i => [i, undefined])
-        );
+        const values = clearChildValuesOnOff
+          ? fromPairs(this.getFormItemNames().map(i => [i, undefined]))
+          : {};
         name && (values[name] = falseValue);
         onBulkChange && onBulkChange(values);
       }

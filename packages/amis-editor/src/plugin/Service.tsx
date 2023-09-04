@@ -3,6 +3,7 @@ import {render as amisRender} from 'amis';
 import flattenDeep from 'lodash/flattenDeep';
 import {
   EditorNodeType,
+  JSONPipeOut,
   jsonToJsonSchema,
   registerEditorPlugin,
   BaseEventContext,
@@ -349,6 +350,36 @@ export class ServicePlugin extends BasePlugin {
 
     return schema;
   };
+
+  async buildDataSchemas(
+    node: EditorNodeType,
+    region?: EditorNodeType,
+    trigger?: EditorNodeType
+  ) {
+    let jsonschema: any = {
+      ...jsonToJsonSchema(JSONPipeOut(node.schema.data ?? {}))
+    };
+    const pool = node.children.concat();
+
+    while (pool.length) {
+      const current = pool.shift() as EditorNodeType;
+      const schema = current.schema;
+
+      if (current.rendererConfig?.isFormItem && schema?.name) {
+        jsonschema.properties[schema.name] =
+          await current.info.plugin.buildDataSchemas?.(
+            current,
+            undefined,
+            trigger,
+            node
+          );
+      } else if (!current.rendererConfig?.storeType) {
+        pool.push(...current.children);
+      }
+    }
+
+    return jsonschema;
+  }
 
   rendererBeforeDispatchEvent(node: EditorNodeType, e: any, data: any) {
     if (e === 'fetchInited') {

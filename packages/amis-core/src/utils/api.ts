@@ -14,7 +14,8 @@ import {
   extendObject,
   qsparse,
   uuid,
-  JSONTraverse
+  JSONTraverse,
+  isEmpty
 } from './helper';
 import isPlainObject from 'lodash/isPlainObject';
 import {debug, warning} from './debug';
@@ -76,7 +77,7 @@ export function buildApi(
   }
 
   if (api.requestAdaptor && typeof api.requestAdaptor === 'string') {
-    api.requestAdaptor = str2function(
+    api.requestAdaptor = str2AsyncFunction(
       api.requestAdaptor,
       'api',
       'context'
@@ -84,7 +85,7 @@ export function buildApi(
   }
 
   if (api.adaptor && typeof api.adaptor === 'string') {
-    api.adaptor = str2function(
+    api.adaptor = str2AsyncFunction(
       api.adaptor,
       'payload',
       'response',
@@ -342,6 +343,20 @@ export function str2AsyncFunction(
   }
 }
 
+export function callStrFunction(
+  this: any,
+  fn: string | Function,
+  argNames: Array<string>,
+  ...args: Array<any>
+) {
+  if (typeof fn === 'function') {
+    return fn.apply(this, args);
+  } else if (typeof fn === 'string' && fn) {
+    const func = str2function(fn, ...argNames)!;
+    return func?.apply(this, args);
+  }
+}
+
 export function responseAdaptor(ret: fetcherResult, api: ApiObject) {
   let data = ret.data;
   let hasStatusField = true;
@@ -432,19 +447,11 @@ export function responseAdaptor(ret: fetcherResult, api: ApiObject) {
 
   debug('api', 'response', payload);
 
-  if (payload.ok && api.responseData) {
+  if (api.responseData && (payload.ok || !isEmpty(payload.data))) {
     debug('api', 'before dataMapping', payload.data);
     const responseData = dataMapping(
       api.responseData,
-
-      createObject(
-        {api},
-        (Array.isArray(payload.data)
-          ? {
-              items: payload.data
-            }
-          : payload.data) || {}
-      ),
+      createObject({api}, normalizeApiResponseData(payload.data)),
       undefined,
       api.convertKeyToPath
     );
@@ -464,12 +471,16 @@ export function wrapFetcher(
     return fn as any;
   }
 
-  const wrappedFetcher = function (api: Api, data: object, options?: object) {
+  const wrappedFetcher = async function (
+    api: Api,
+    data: object,
+    options?: object
+  ) {
     api = buildApi(api, data, options) as ApiObject;
 
     if (api.requestAdaptor) {
       debug('api', 'before requestAdaptor', api);
-      api = api.requestAdaptor(api, data) || api;
+      api = (await api.requestAdaptor(api, data)) || api;
       debug('api', 'after requestAdaptor', api);
     }
 
@@ -499,6 +510,12 @@ export function wrapFetcher(
       api.data = JSON.stringify(api.data) as any;
       api.headers = api.headers || (api.headers = {});
       api.headers['Content-Type'] = 'application/json';
+    }
+
+    // 如果发送适配器中设置了 mockResponse
+    // 则直接跳过请求发送
+    if (api.mockResponse) {
+      return wrapAdaptor(Promise.resolve(api.mockResponse) as any, api, data);
     }
 
     if (!isValidApi(api.url)) {
@@ -753,15 +770,14 @@ export function isValidApi(api: string) {
   }
   const idx = api.indexOf('://');
 
-  // 不允许直接相对路径写 api
   // 不允许 :// 结尾
-  if ((!~idx && api[0] !== '/') || (~idx && idx + 3 === api.length)) {
+  if (~idx && idx + 3 === api.length) {
     return false;
   }
 
   try {
     // 不补一个协议，URL 判断为 false
-    api = (~idx ? '' : 'schema://domain') + api;
+    api = (~idx ? '' : `schema://domain${api[0] === '/' ? '' : '/'}`) + api;
     new URL(api);
   } catch (error) {
     return false;

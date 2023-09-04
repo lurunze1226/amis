@@ -34,20 +34,22 @@ export class Value extends React.Component<ValueProps> {
       disabled,
       formula,
       popOverContainer,
-      renderEtrValue
+      renderEtrValue,
+      mobileUI
     } = this.props;
     let input: JSX.Element | undefined = undefined;
     if (formula) {
       // 如果配置了 formula 字段，则所有的输入变为 formula 形式
-      formula = Object.assign(formula, {
+      formula = {
+        ...formula,
         translate: __,
         classnames: cx,
         data,
         value: value ?? field.defaultValue,
         onChange,
         disabled
-      });
-      /** 生成指定类型输入框的的公式编辑器，默认覆盖用户配置 */
+      };
+
       const inputSettings =
         field.type !== 'custom' && formula?.inputSettings
           ? {
@@ -68,7 +70,7 @@ export class Value extends React.Component<ValueProps> {
           onChange={onChange}
           placeholder={__(field.placeholder)}
           disabled={disabled}
-          useMobileUI
+          mobileUI={mobileUI}
         />
       );
     } else if (field.type === 'number') {
@@ -82,7 +84,7 @@ export class Value extends React.Component<ValueProps> {
           value={value ?? field.defaultValue}
           onChange={onChange}
           disabled={disabled}
-          useMobileUI
+          mobileUI={mobileUI}
         />
       );
     } else if (field.type === 'date') {
@@ -96,7 +98,7 @@ export class Value extends React.Component<ValueProps> {
           timeFormat=""
           disabled={disabled}
           popOverContainer={popOverContainer}
-          useMobileUI
+          mobileUI={mobileUI}
         />
       );
     } else if (field.type === 'time') {
@@ -112,7 +114,7 @@ export class Value extends React.Component<ValueProps> {
           timeFormat={field.format || 'HH:mm'}
           disabled={disabled}
           popOverContainer={popOverContainer}
-          useMobileUI
+          mobileUI={mobileUI}
         />
       );
     } else if (field.type === 'datetime') {
@@ -126,7 +128,7 @@ export class Value extends React.Component<ValueProps> {
           timeFormat={field.timeFormat || 'HH:mm'}
           disabled={disabled}
           popOverContainer={popOverContainer}
-          useMobileUI
+          mobileUI={mobileUI}
         />
       );
     } else if (field.type === 'select') {
@@ -146,7 +148,9 @@ export class Value extends React.Component<ValueProps> {
           multiple={op === 'select_any_in' || op === 'select_not_any_in'}
           disabled={disabled}
           popOverContainer={popOverContainer}
-          useMobileUI
+          mobileUI={mobileUI}
+          maxTagCount={field.maxTagCount}
+          overflowTagPopover={field.overflowTagPopover}
         />
       );
     } else if (field.type === 'boolean') {

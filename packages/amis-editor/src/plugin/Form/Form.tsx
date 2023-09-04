@@ -1,7 +1,7 @@
 import cx from 'classnames';
 import flatten from 'lodash/flatten';
 import cloneDeep from 'lodash/cloneDeep';
-import {isObject, someTree} from 'amis-core';
+import {isObject} from 'amis-core';
 import {
   BasePlugin,
   tipedLabel,
@@ -13,14 +13,13 @@ import {
   defaultValue,
   getSchemaTpl,
   jsonToJsonSchema,
-  BuildPanelEventContext,
-  BasicPanelItem,
   RendererPluginAction,
   RendererPluginEvent,
   EditorNodeType,
   ScaffoldForm,
   RegionConfig,
-  registerEditorPlugin
+  registerEditorPlugin,
+  JSONPipeOut
 } from 'amis-editor-core';
 import {
   DSFeatureType,
@@ -33,12 +32,17 @@ import {getEventControlConfig} from '../../renderer/event-control/helper';
 import {FieldSetting} from '../../renderer/FieldSetting';
 
 import type {FormSchema} from 'amis/lib/Schema';
-import type {IFormStore, IFormItemStore} from 'amis-core';
+import type {
+  IFormStore,
+  IFormItemStore,
+  Schema,
+  RendererConfig
+} from 'amis-core';
 import type {FormScaffoldConfig} from '../../builder';
 
 export type FormPluginFeat = Extract<
   DSFeatureType,
-  'Insert' | 'Edit' | 'BulkEdit'
+  'Insert' | 'Edit' | 'BulkEdit' | 'View'
 >;
 
 export interface ExtendFormSchema extends FormSchema {
@@ -69,7 +73,7 @@ export class FormPlugin extends BasePlugin {
 
   $schema = '/schemas/FormSchema.json';
 
-  tags = ['功能', '数据容器'];
+  tags = ['数据容器'];
 
   order = -900;
 
@@ -364,7 +368,7 @@ export class FormPlugin extends BasePlugin {
   }> = [
     {label: '新增', value: DSFeatureEnum.Insert},
     {label: '编辑', value: DSFeatureEnum.Edit},
-    {label: '批量编辑', value: DSFeatureEnum.BulkEdit},
+    {label: '批量编辑', value: DSFeatureEnum.BulkEdit, disabled: true},
     {label: '查看', value: DSFeatureEnum.View, disabled: true}
   ];
 
@@ -379,6 +383,8 @@ export class FormPlugin extends BasePlugin {
 
   /** 表单脚手架 */
   get scaffoldForm(): ScaffoldForm {
+    const features = this.Features.filter(f => !f.disabled);
+
     return {
       title: '表单创建向导',
       mode: {
@@ -395,7 +401,7 @@ export class FormPlugin extends BasePlugin {
           name: 'feat',
           label: '使用场景',
           value: DSFeatureEnum.Insert,
-          options: this.Features,
+          options: features,
           onChange: (
             value: FormPluginFeat,
             oldValue: FormPluginFeat,
@@ -461,7 +467,7 @@ export class FormPlugin extends BasePlugin {
         }),
         /** 数据源相关配置 */
         ...flatten(
-          this.Features.map(feat =>
+          features.map(feat =>
             this.dsManager.buildCollectionFromBuilders(
               (builder, builderKey) => {
                 return {
@@ -944,6 +950,24 @@ export class FormPlugin extends BasePlugin {
                 }),
                 getSchemaTpl('horizontal'),
                 {
+                  name: 'labelAlign',
+                  label: '标签对齐方式',
+                  type: 'button-group-select',
+                  size: 'sm',
+                  visibleOn: "${mode === 'horizontal'}",
+                  pipeIn: defaultValue('right', false),
+                  options: [
+                    {
+                      label: '左对齐',
+                      value: 'left'
+                    },
+                    {
+                      label: '右对齐',
+                      value: 'right'
+                    }
+                  ]
+                },
+                {
                   label: '列数',
                   name: 'columnCount',
                   type: 'input-number',
@@ -1032,6 +1056,31 @@ export class FormPlugin extends BasePlugin {
     ];
   };
 
+  /** 重新构建 API */
+  panelFormPipeOut = async (schema: any) => {
+    const entity = schema?.api?.entity;
+
+    if (!entity || schema?.dsType !== ModelDSBuilderKey) {
+      return schema;
+    }
+
+    const builder = this.dsManager.getBuilderBySchema(schema);
+
+    try {
+      const updatedSchema = await builder.buildApiSchema({
+        schema,
+        renderer: 'form',
+        sourceKey: 'api',
+        feat: schema.feat ?? 'Insert'
+      });
+      return updatedSchema;
+    } catch (e) {
+      console.error(e);
+    }
+
+    return schema;
+  };
+
   afterUpdate(event: PluginEvent<ChangeEventContext>) {
     const context = event.context;
 
@@ -1049,102 +1098,22 @@ export class FormPlugin extends BasePlugin {
     trigger?: EditorNodeType
   ) {
     const jsonschema: any = {
-      $id: 'formItems',
-      type: 'object',
-      properties: {}
+      ...jsonToJsonSchema(JSONPipeOut(node.schema.data))
     };
-
     const pool = node.children.concat();
+
     while (pool.length) {
       const current = pool.shift() as EditorNodeType;
       const schema = current.schema;
 
-      if (current.rendererConfig?.type === 'combo') {
-        if (trigger) {
-          const items = current.children?.find(
-            child => child.isRegion && child.region === 'items'
+      if (current.rendererConfig?.isFormItem && schema.name) {
+        jsonschema.properties[schema.name] =
+          await current.info.plugin.buildDataSchemas?.(
+            current,
+            region,
+            trigger,
+            node
           );
-          const isItemsChild = someTree(
-            items.children,
-            item => item.id === trigger?.id
-          );
-
-          if (isItemsChild) {
-            const itemsChilds = items.children.concat();
-
-            while (itemsChilds.length) {
-              const currentItem = itemsChilds.shift() as EditorNodeType;
-              const itemSchema = currentItem.schema;
-
-              if (itemSchema.name) {
-                jsonschema.properties[itemSchema.name] = {
-                  ...(currentItem.info?.plugin?.buildDataSchemas
-                    ? await currentItem.info.plugin.buildDataSchemas(
-                        currentItem,
-                        region,
-                        trigger
-                      )
-                    : {
-                        type: 'string',
-                        title: itemSchema.label || itemSchema.name
-                      }),
-                  group: `当前行记录(${schema.label || schema.name})`
-                };
-              }
-            }
-          }
-        }
-
-        if (schema.name) {
-          jsonschema.properties[schema.name] =
-            await current.info.plugin.buildDataSchemas?.(current, region);
-        }
-      } else if (current.rendererConfig?.type === 'input-table') {
-        if (trigger) {
-          const columns: EditorNodeType = current.children.find(
-            item => item.isRegion && item.region === 'columns'
-          );
-          const isColumnChild = someTree(
-            columns?.children,
-            item => item.id === trigger.id
-          );
-
-          if (isColumnChild) {
-            for (let col of schema?.columns) {
-              if (col.name) {
-                jsonschema.properties[col.name] = {
-                  type: 'string',
-                  title: col.label || col.name,
-                  group: `当前行记录(${schema.label || schema.name})`
-                };
-              }
-            }
-          }
-        }
-        if (schema.name) {
-          jsonschema.properties[schema.name] =
-            await current.info.plugin.buildDataSchemas?.(
-              current,
-              region,
-              trigger
-            );
-        }
-      } else if (current.rendererConfig?.isFormItem) {
-        if (schema.name) {
-          jsonschema.properties[schema.name] = current.info?.plugin
-            ?.buildDataSchemas
-            ? await current.info.plugin.buildDataSchemas(
-                current,
-                region,
-                trigger
-              )
-            : {
-                type: 'string',
-                title:
-                  typeof schema.label === 'string' ? schema.label : schema.name,
-                originalValue: schema.value // 记录原始值，循环引用检测需要
-              };
-        }
       } else {
         pool.push(...current.children);
       }
@@ -1223,6 +1192,40 @@ export class FormPlugin extends BasePlugin {
         );
       }
     }
+  }
+
+  /**
+   * 为了让 form 的按钮可以点击编辑
+   */
+  patchSchema(schema: Schema, info: RendererConfig, props: any) {
+    if (
+      Array.isArray(schema.actions) ||
+      schema.wrapWithPanel === false ||
+      (Array.isArray(schema.body) &&
+        schema.body.some(
+          (item: any) =>
+            item &&
+            !!~['submit', 'button', 'button-group', 'reset'].indexOf(
+              (item as any)?.body?.[0]?.type ||
+                (item as any)?.body?.type ||
+                (item as any).type
+            )
+        ))
+    ) {
+      return;
+    }
+
+    return {
+      ...schema,
+      actions: [
+        {
+          type: 'submit',
+          label:
+            props?.translate(props?.submitText) || schema.submitText || '提交',
+          primary: true
+        }
+      ]
+    };
   }
 }
 

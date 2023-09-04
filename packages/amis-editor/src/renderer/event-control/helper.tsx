@@ -2141,6 +2141,16 @@ export const COMMON_ACTION_SCHEMA_MAP: {
       );
     }
   },
+  expand: {
+    descDetail: (info: any) => {
+      return (
+        <div>
+          <span className="variable-right">{info?.rendererLabel}</span>
+          展开
+        </div>
+      );
+    }
+  },
   collapse: {
     descDetail: (info: any) => {
       return (
@@ -2692,7 +2702,7 @@ export const getEventControlConfig = (
     : ACTION_TYPE_TREE(manager);
   const allComponents = manager?.store?.getComponentTreeSource();
   const checkComponent = (node: any, action: RendererPluginAction) => {
-    const actionType = action.actionType!;
+    const actionType = action?.actionType;
     const actions = manager?.pluginActions[node.type];
     const haveChild = !!node.children?.length;
     let isSupport = false;
@@ -2746,6 +2756,10 @@ export const getEventControlConfig = (
       return manager.dataSchema;
     },
     getComponents: (action: RendererPluginAction) => {
+      if (!action) {
+        return [];
+      }
+
       let components = manager?.store?.getComponentTreeSource();
       let finalCmpts: any[] = [];
       if (isSubEditor) {
@@ -2776,6 +2790,7 @@ export const getEventControlConfig = (
     },
     actionConfigInitFormatter: async (action: ActionConfig) => {
       let config = {...action};
+      config.args = {...action.args};
       if (['link', 'url'].includes(action.actionType) && action.args?.params) {
         config.args = {
           ...config.args,

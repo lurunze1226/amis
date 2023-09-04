@@ -206,7 +206,7 @@ export class InputFormulaRenderer extends React.Component<InputFormulaProps> {
       popOverContainer,
       env,
       inputSettings,
-      useMobileUI
+      mobileUI
     } = this.props;
     let {variables, functions} = this.props;
 
@@ -222,7 +222,7 @@ export class InputFormulaRenderer extends React.Component<InputFormulaProps> {
 
     return (
       <FormulaPicker
-        popOverContainer={popOverContainer || env.getModalContainer}
+        popOverContainer={env.getModalContainer}
         ref={this.formulaRef}
         className={className}
         value={value}
@@ -250,7 +250,7 @@ export class InputFormulaRenderer extends React.Component<InputFormulaProps> {
         onPickerOpen={onPickerOpen}
         selfVariableName={selfVariableName}
         mixedMode={mixedMode}
-        useMobileUI={useMobileUI}
+        mobileUI={mobileUI}
       />
     );
   }

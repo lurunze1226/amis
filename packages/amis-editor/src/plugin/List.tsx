@@ -298,7 +298,7 @@ export class ListPlugin extends BasePlugin {
     node &&
       value &&
       this.manager.openSubEditor({
-        title: '配置成员详情',
+        title: '配置成员渲染器',
         value: {
           ...value.listItem
         },
@@ -376,7 +376,7 @@ export class ListPlugin extends BasePlugin {
       (info.renderer.name === 'crud' && schema.mode === 'list')
     ) {
       menus.push('|', {
-        label: '配置成员详情',
+        label: '配置成员渲染器',
         onSelect: this.editDetail.bind(this, id)
       });
     }

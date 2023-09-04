@@ -465,7 +465,8 @@ export default class Drawer extends React.Component<DrawerProps> {
       onInit: this.handleFormInit,
       onSaved: this.handleFormSaved,
       onActionSensor: this.handleActionSensor,
-      syncLocation: false
+      syncLocation: false,
+      affixOffsetTop: 0
     };
 
     if (schema.type === 'form') {
@@ -931,7 +932,7 @@ export class DrawerRenderer extends Drawer {
 
     if (reload) {
       scoped.reload(reload, store.data);
-    } else if (scoped.component?.reload) {
+    } else if (scoped.component !== this && scoped.component?.reload) {
       scoped.component.reload();
     } else {
       // 没有设置，则自动让页面中 crud 刷新。
@@ -957,7 +958,7 @@ export class DrawerRenderer extends Drawer {
     setTimeout(() => {
       if (reload) {
         scoped.reload(reload, store.data);
-      } else if (scoped.component?.reload) {
+      } else if (scoped.component !== this && scoped.component?.reload) {
         scoped.component.reload();
       } else {
         // 没有设置，则自动让页面中 crud 刷新。

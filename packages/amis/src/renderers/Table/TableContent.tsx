@@ -179,13 +179,11 @@ export class TableContent extends React.Component<TableContentProps> {
         onScroll={onScroll}
       >
         <table
-          style={
-            store.useFixedLayout && store.columnWidthReady
-              ? {tableLayout: 'fixed'}
-              : undefined
-          }
           ref={tableRef}
-          className={tableClassName}
+          className={cx(
+            tableClassName,
+            store.columnWidthReady ? 'is-layout-fixed' : undefined
+          )}
         >
           <ColGroup columns={columns} store={store} />
           <thead>
@@ -267,6 +265,7 @@ export class TableContent extends React.Component<TableContentProps> {
             </tbody>
           ) : (
             <TableBody
+              store={store}
               itemAction={itemAction}
               classnames={cx}
               render={render}

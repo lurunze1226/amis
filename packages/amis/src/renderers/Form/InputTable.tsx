@@ -212,6 +212,11 @@ export interface TableControlSchema
    * 底部新增按钮配置
    */
   footerAddBtn?: SchemaCollection;
+
+  /**
+   * 新增内容时是否自动聚焦
+   */
+  autoFocus?: boolean;
 }
 
 export interface TableProps
@@ -603,7 +608,7 @@ export default class FormTable extends React.Component<TableProps, TableState> {
   }
 
   async addItem(index: number, isDispatch: boolean = true) {
-    const {needConfirm, scaffold, columns, data} = this.props;
+    const {needConfirm, scaffold, columns, data, autoFocus} = this.props;
     const items = this.state.items.concat();
     let value: any = {
       __isPlaceholder: true
@@ -667,6 +672,14 @@ export default class FormTable extends React.Component<TableProps, TableState> {
         } else {
           this.startEdit(index, true);
         }
+
+        requestAnimationFrame(() => {
+          this.tableRef?.current?.scrollIntoView?.({
+            behavior: 'smooth',
+            block: 'end',
+            inline: 'nearest'
+          });
+        });
       }
     );
 
@@ -1229,7 +1242,7 @@ export default class FormTable extends React.Component<TableProps, TableState> {
           label: __('Table.operation'),
           className: 'v-middle nowrap',
           fixed: 'right',
-          width: '1%',
+          width: 100,
           innerClassName: 'm-n'
         };
         columns.push(operation);
@@ -1248,7 +1261,7 @@ export default class FormTable extends React.Component<TableProps, TableState> {
     if (showIndex) {
       columns.unshift({
         label: __('Table.index'),
-        width: '1%',
+        width: 50,
         children: (props: any) => {
           return <td>{props.offset + props.data.index + 1}</td>;
         }
@@ -1681,21 +1694,25 @@ export class TableControlRenderer extends FormTable {
           toAdd = args.item;
         }
 
-        toAdd = Array.isArray(toAdd) ? toAdd : [toAdd];
-        // 如果没指定插入的位置（args.index），则默认在头部插入
-        const pushIndex = args.index || 0;
-        // 从右往左插入
-        for (let i = toAdd.length; i >= 1; i--) {
-          if (
+        toAdd = (Array.isArray(toAdd) ? toAdd : [toAdd]).filter(
+          a =>
             !valueField ||
             !find(
               items,
-              item =>
-                item[valueField as string] == toAdd[i - 1][valueField as string]
+              item => item[valueField as string] == a[valueField as string]
             )
-          ) {
-            items.splice(pushIndex, 0, toAdd[i - 1]);
-          }
+        );
+
+        let index = args.index;
+        if (typeof index === 'string' && /^\d+$/.test(index)) {
+          index = parseInt(index, 10);
+        }
+
+        if (typeof index === 'number') {
+          items.splice(index, 0, ...toAdd);
+        } else {
+          // 没有指定默认插入在最后
+          items.push(...toAdd);
         }
 
         this.setState(
@@ -1718,17 +1735,31 @@ export class TableControlRenderer extends FormTable {
       const items = [...this.state.items];
       let rawItems: any = [];
       const deletedItems: any = [];
-
-      if (args.index) {
-        const indexArr = args.index.split(',');
-        rawItems = items.filter(
-          (item, index) => !indexArr.includes(index.toString())
+      // 过滤掉无意义的索引
+      const indexArr = String(args?.index)
+        .split(',')
+        .map(i => String(i).trim())
+        .filter(
+          i =>
+            i !== 'undefined' &&
+            i !== '' &&
+            parseInt(i, 10) >= 0 &&
+            parseInt(i, 10) < items.length
         );
-      } else if (args.condition) {
+
+      if (!indexArr.length && !args?.condition) {
+        return;
+      }
+
+      if (indexArr.length) {
+        rawItems = items.filter(
+          (item, index) => !indexArr.includes(String(index))
+        );
+      } else if (args?.condition) {
         const itemsLength = items.length;
         for (let i = 0; i < itemsLength; i++) {
           const flag = await evalExpressionWithConditionBuilder(
-            args?.condition,
+            args.condition,
             {...items[i], rowIndex: i}
           );
           if (!flag) {

@@ -26,7 +26,6 @@ import {BasicEditor, RendererEditor} from './compat';
 import MiniEditor from './component/MiniEditor';
 import CodeEditor from './component/Panel/AMisCodeEditor';
 import IFramePreview from './component/IFramePreview';
-import {mountInIframe} from './component/IFrameBridge';
 import SearchPanel from './component/base/SearchPanel';
 import {VRenderer} from './component/VRenderer';
 import {RegionWrapper} from './component/RegionWrapper';
@@ -50,7 +49,6 @@ export {
   CodeEditor,
   VRenderer,
   RegionWrapper,
-  mountInIframe,
   IFramePreview as IFrameEditor,
   SearchPanel,
   EditorNodeType,

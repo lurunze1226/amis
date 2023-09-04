@@ -471,7 +471,7 @@ export class Input extends React.Component<RangeItemProps, any> {
       disabled,
       max,
       min,
-      useMobileUI
+      mobileUI
     } = this.props;
     const _value = multiple
       ? type === 'min'
@@ -489,7 +489,7 @@ export class Input extends React.Component<RangeItemProps, any> {
           disabled={disabled}
           onBlur={this.onBlur}
           onFocus={this.onFocus}
-          useMobileUI={useMobileUI}
+          mobileUI={mobileUI}
         />
       </div>
     );
@@ -645,10 +645,12 @@ export default class RangeControl extends React.PureComponent<
    * 获取导出格式数据
    */
   @autobind
-  getFormatValue(value: FormatValue) {
-    const {multiple, joinValues, delimiter} = this.props;
+  getFormatValue(value: FormatValue): Value {
+    const {multiple, joinValues, delimiter, extraName} = this.props;
     return multiple
-      ? joinValues
+      ? extraName
+        ? [(value as MultipleValue).min, (value as MultipleValue).max]
+        : joinValues
         ? [(value as MultipleValue).min, (value as MultipleValue).max].join(
             delimiter || ','
           )
@@ -687,7 +689,7 @@ export default class RangeControl extends React.PureComponent<
       render,
       marks,
       region,
-      useMobileUI
+      mobileUI
     } = props;
 
     // 处理自定义json配置
@@ -702,7 +704,6 @@ export default class RangeControl extends React.PureComponent<
             (renderMarks[key] = render(region, item as SchemaObject));
         }
       });
-    const mobileUI = useMobileUI && isMobile();
 
     return (
       <div
